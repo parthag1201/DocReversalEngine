@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    The final answer is the MermaidJS code block.
+```
+flowchart TD
+    A(Start Program)
+    B[Initialize Screen Text & Labels]
+    C[Prepare Dynamic Screen (Enable/Disable Fields)]
+    D[/Display Selection Screen/]
+    E[/User Provides Input and Clicks Execute/]
+    F{Are Inputs Valid?}
+    G[Display Validation Error]
+    H[Initialize Application Log]
+    I[Validate Paths & Collect File List (t_files)]
+    J[Filter File List]
+    K{More Files to Process?}
+    L[/Read Next File/]
+    M[Process File Data (Update Credit Info)]
+    N[Record Results to Internal Table (t_disp)]
+    O[Log Progress for Current File]
+    P[/Display Execution Log/]
+    Z(End Program)
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F -- Yes --> H
+    F -- No --> G
+    G --> Z
+    H --> I
+    I --> J
+    J --> K
+    K -- Yes --> L
+    K -- No --> P
+    L --> M
+    M --> N
+    N --> O
+    O --> K
+    P --> Z
+```
+  </div>
+</body>
+</html>
