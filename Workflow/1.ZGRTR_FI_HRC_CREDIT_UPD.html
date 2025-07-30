@@ -11,46 +11,81 @@
 </head>
 <body>
   <div class="mermaid">
-    The final answer is the MermaidJS code block.
-```
-flowchart TD
-    A(Start Program)
-    B[Initialize Screen Text & Labels]
-    C[Prepare Dynamic Screen (Enable/Disable Fields)]
-    D[/Display Selection Screen/]
-    E[/User Provides Input and Clicks Execute/]
-    F{Are Inputs Valid?}
-    G[Display Validation Error]
-    H[Initialize Application Log]
-    I[Validate Paths & Collect File List (t_files)]
-    J[Filter File List]
-    K{More Files to Process?}
-    L[/Read Next File/]
-    M[Process File Data (Update Credit Info)]
-    N[Record Results to Internal Table (t_disp)]
-    O[Log Progress for Current File]
-    P[/Display Execution Log/]
-    Z(End Program)
+graph TD
+    %% Node Definitions
+    A((Start Program))
+    B[Set screen title and pre-populate text labels]
+    C[Prepare selection screen]
+    D{Is Presentation Server selected?}
+    E[Dynamically enable Presentation Server fields]
+    F[Dynamically enable Application Server fields]
+    G[/Display selection screen to user/]
+    H[User clicks 'Execute']
+    I[Validate selection screen parameters]
+    J{Is input valid?}
+    K[Set abort_flag = TRUE, store error message]
+    L[Create new application log instance]
+    M{Server type is Presentation Server?}
+    N[Validate Presentation Server path]
+    O[Validate Application Server paths]
+    P[Read directory and populate internal file list t_files]
+    Q{Are paths valid and accessible?}
+    R[Set abort_flag = TRUE, log path error]
+    S[Filter file list t_files based on naming convention]
+    T{Valid files found?}
+    U[Set abort_flag = TRUE, log filter error]
+    V{Is abort_flag FALSE?}
+    W[For each file in t_files]
+    X[Read file content from Presentation or Application Server]
+    Y[Process records, handle record-level errors, write to error file]
+    Z[Store results in temporary display table t_disp]
+    AA[Move original file to backup directory]
+    AB{Critical, unrecoverable error occurred?}
+    AC[Set abort_flag = TRUE]
+    AD[End file loop]
+    AE[Save and display application log]
+    AF((End Program))
 
+    %% Connection Definitions
     A --> B
     B --> C
     C --> D
-    D --> E
-    E --> F
-    F -- Yes --> H
-    F -- No --> G
-    G --> Z
+    D -- Yes --> E
+    D -- No --> F
+    E --> G
+    F --> G
+    G --> H
     H --> I
     I --> J
-    J --> K
-    K -- Yes --> L
-    K -- No --> P
+    J -- Yes --> L
+    J -- No --> K
+    K --> AE
     L --> M
-    M --> N
-    N --> O
-    O --> K
-    P --> Z
-```
+    M -- Yes --> N
+    M -- No --> O
+    N --> P
+    O --> P
+    P --> Q
+    Q -- Yes --> S
+    Q -- No --> R
+    R --> AE
+    S --> T
+    T -- Yes --> V
+    T -- No --> U
+    U --> AE
+    V -- Yes --> W
+    V -- No --> AE
+    W --> X
+    X --> Y
+    Y --> Z
+    Z --> AA
+    AA --> AB
+    AB -- Yes --> AC
+    AC --> AD
+    AB -- No --> AD
+    AD -- more files --> W
+    AD -- no more files --> AE
+    AE --> AF
   </div>
 </body>
 </html>
