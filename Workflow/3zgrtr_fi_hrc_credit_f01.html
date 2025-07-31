@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    graph TD
+    %% Node Definitions
+    start([Start Program])
+    val_usr_inp["Initial Input Validation<br><i>val_usr_inp</i>"]
+    decision_path_missing{"Required path missing?"}
+    err_path_missing[/"Display error message"/]
+    end_path_missing([Stop])
+    validate_fpath["Validate File Path<br><i>validate_fpath</i>"]
+    decision_source_server{"Source is Presentation Server?"}
+    val_pser["Validate Presentation Server Path<br><i>val_pser</i>"]
+    decision_pser_file_exists{"File exists?"}
+    err_pser_file_not_exist[/"Generate error message"/]
+    end_pser_file_not_exist([Stop])
+    create_pser_table["Create single-entry file list<br><i>append_fname</i>"]
+    val_aser["Validate Application Server Paths<br><i>val_aser</i>"]
+    decision_aser_path_valid{"Paths valid (no filename)?"}
+    err_aser_path_invalid[/"Generate error message"/]
+    end_aser_path_invalid([Stop])
+    get_aser_files["Retrieve file list from directory<br><i>get_files</i>"]
+    filter_files["Filter for .txt/.csv files<br><i>rv_file_names</i>"]
+    decision_filtered_list_empty{"Filtered list empty?"}
+    msg_no_files_found[/"Generate 'No valid files' message"/]
+    end_no_files_found([Stop])
+    init_log["Initialize Application Log<br><i>create_bal_log</i>"]
+    loop_start_main["Start: Process each file in list<br><i>load_process_files</i>"]
+    decision_read_source{"Read from Presentation Server?"}
+    read_pser_file[/"Upload file from Presentation Server<br><i>cl_gui_frontend_services=>gui_upload</i>"/]
+    read_aser_file[/"Read file from Application Server<br><i>OPEN DATASET</i>"/]
+    parse_file_content["Parse file content into internal table"]
+    validate_records["Validate records & split into Success/Error tables<br><i>valid_cred_data</i>"]
+    decision_has_errors{"Error table not empty?"}
+    move_error_file["Move error records to error file<br><i>move_files</i>"]
+    decision_has_success{"Success table not empty?"}
+    process_success_records["Process successful records<br><i>process_records</i>"]
+    loop_start_process_success["Start: Loop through success records"]
+    format_currency["Format currency amount<br><i>BAPI_CURRENCY_CONV_TO_INTERNAL</i>"]
+    update_credit_limit["Update customer credit limit<br><i>CREDITLIMIT_CHANGE</i>"]
+    create_change_doc["Create change document<br><i>KLIM_WRITE_DOCUMENT</i>"]
+    commit_work["Commit DB update for record<br><i>BAPI_TRANSACTION_COMMIT</i>"]
+    log_record_success["Add success message to log"]
+    loop_end_process_success["End: Loop through success records"]
+    move_backup_file["Move success records to backup file<br><i>move_files</i>"]
+    loop_end_main["End: Process each file in list"]
+    save_log["Save Application Log to DB<br><i>save_bal_log</i>"]
+    generate_report[/"Generate Final Summary Report<br><i>write_log</i>"/]
+    end_program([End])
+
+    %% Connections
+    start --> val_usr_inp
+    val_usr_inp --> decision_path_missing
+    decision_path_missing -->|Yes| err_path_missing
+    err_path_missing --> end_path_missing
+    decision_path_missing -->|No| validate_fpath
+    validate_fpath --> decision_source_server
+    decision_source_server -->|Yes| val_pser
+    decision_source_server -->|No| val_aser
+    val_pser --> decision_pser_file_exists
+    decision_pser_file_exists -->|No| err_pser_file_not_exist
+    err_pser_file_not_exist --> end_pser_file_not_exist
+    decision_pser_file_exists -->|Yes| create_pser_table
+    create_pser_table --> init_log
+    val_aser --> decision_aser_path_valid
+    decision_aser_path_valid -->|No| err_aser_path_invalid
+    err_aser_path_invalid --> end_aser_path_invalid
+    decision_aser_path_valid -->|Yes| get_aser_files
+    get_aser_files --> filter_files
+    filter_files --> decision_filtered_list_empty
+    decision_filtered_list_empty -->|Yes| msg_no_files_found
+    msg_no_files_found --> end_no_files_found
+    decision_filtered_list_empty -->|No| init_log
+    init_log --> loop_start_main
+    loop_start_main --> decision_read_source
+    decision_read_source -->|Yes| read_pser_file
+    decision_read_source -->|No| read_aser_file
+    read_pser_file --> parse_file_content
+    read_aser_file --> parse_file_content
+    parse_file_content --> validate_records
+    validate_records --> decision_has_errors
+    decision_has_errors -->|Yes| move_error_file
+    move_error_file --> decision_has_success
+    decision_has_errors -->|No| decision_has_success
+    decision_has_success -->|Yes| process_success_records
+    decision_has_success -->|No| loop_end_main
+    process_success_records --> loop_start_process_success
+    loop_start_process_success --> format_currency
+    format_currency --> update_credit_limit
+    update_credit_limit --> create_change_doc
+    create_change_doc --> commit_work
+    commit_work --> log_record_success
+    log_record_success --> loop_end_process_success
+    loop_end_process_success -->|Next record| loop_start_process_success
+    loop_end_process_success -->|End of loop| move_backup_file
+    move_backup_file --> loop_end_main
+    loop_end_main -->|Next file| loop_start_main
+    loop_end_main -->|End of loop| save_log
+    save_log --> generate_report
+    generate_report --> end_program
+  </div>
+</body>
+</html>

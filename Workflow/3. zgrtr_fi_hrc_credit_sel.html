@@ -1,0 +1,38 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    graph TD;
+    A(Start Program);
+    B["Set Default Values:<br>- File Location = 'Application Server'<br>- Delimiter = '|'<br>- Pre-fill Application Server Paths"];
+    C[/Display Initial Screen to User/];
+    D{User selects 'Presentation Server'?};
+    E["Re-render Screen:<br>- Hide 'Application Server Paths' block<br>- Show 'Presentation Server Paths' block"];
+    F["Render Screen:<br>- Show 'Application Server Paths' block<br>- Hide 'Presentation Server Paths' block"];
+    G[/User provides 'Credit control area' criteria/];
+    H[/User provides optional 'File Delimiter'/];
+    I["User Executes Program e.g., F8:<br>Capture all input values from screen"];
+    J(End of Input Phase);
+
+    A --> B;
+    B --> C;
+    C --> D;
+    D -- "Yes" --> E;
+    D -- "No / Default" --> F;
+    E --> G;
+    F --> G;
+    G --> H;
+    H --> I;
+    I --> J;
+  </div>
+</body>
+</html>
