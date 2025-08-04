@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    graph TD
+    %% Node Definitions
+    START(Start Program)
+    VERIFY_CTX_1[Retrieve current program call stack]
+    VERIFY_CTX_2_LOOP[For each entry in call stack]
+    VERIFY_CTX_3_DECISION{Is main program SAPLMBWL & parameter IMSEG exists?}
+    VERIFY_CTX_4_PROCESS[Set confirmation flag lv_flag = X]
+    CHECK_TXN_MB1B{Is transaction MB1B?}
+    CHECK_FLAG{Is confirmation flag lv_flag set?}
+    END_HALT((Halt Execution))
+    ACQUIRE_DATA[Acquire goods movement data from SAP memory]
+    CHECK_UCOMM{Is user command OK_CHECK?}
+    CHECK_QM_SETUP{Does material have active QM setup type 08 or Z01?}
+    CHECK_RULES{Is lot type 08/Z01 AND mvt type 101/322/349/Z49?}
+    BRANCH_MVT_TYPE{Is movement type 101?}
+    MVT101_QUERY[Query custom table ZGMTD_CLD_PGI]
+    MVT101_LOOP[For each record found in custom table]
+    MVT101_CALC[Calculate new end date/time from record duration]
+    MVT101_UPDATE[Update inspection lot end date/time]
+    OTHER_MVT_SEARCH_04[Search for previous inspection lot type 04]
+    OTHER_MVT_DECISION_04_FOUND{Was type 04 lot found?}
+    OTHER_MVT_SEARCH_08[Search for previous inspection lot type 08 or Z01]
+    OTHER_MVT_DECISION_ANY_FOUND{Were any previous inspection lots found?}
+    OTHER_MVT_UPDATE[Update lot end date to be MAX latest_previous_lot_end_date, system_date]
+    FINALIZE[Finalize: Pass data to E_QALS & set E_ACTIVE flag]
+    END_COMPLETE((End Program))
+
+    %% Connections
+    START --> VERIFY_CTX_1
+    VERIFY_CTX_1 --> VERIFY_CTX_2_LOOP
+    VERIFY_CTX_2_LOOP -->|Next entry| VERIFY_CTX_3_DECISION
+    VERIFY_CTX_3_DECISION -->|Yes| VERIFY_CTX_4_PROCESS
+    VERIFY_CTX_4_PROCESS -->|Exit loop| CHECK_TXN_MB1B
+    VERIFY_CTX_3_DECISION -->|No| VERIFY_CTX_2_LOOP
+    VERIFY_CTX_2_LOOP -->|Loop finished| CHECK_TXN_MB1B
+    CHECK_TXN_MB1B -->|No| CHECK_FLAG
+    CHECK_FLAG -->|Yes| ACQUIRE_DATA
+    CHECK_FLAG -->|No| END_HALT
+    ACQUIRE_DATA --> CHECK_UCOMM
+    CHECK_UCOMM -->|No Post/Save| CHECK_QM_SETUP
+    CHECK_QM_SETUP -->|Yes| CHECK_RULES
+    CHECK_RULES -->|Yes| BRANCH_MVT_TYPE
+    BRANCH_MVT_TYPE -->|Yes 101| MVT101_QUERY
+    MVT101_QUERY --> MVT101_LOOP
+    MVT101_LOOP -->|Next record| MVT101_CALC
+    MVT101_CALC --> MVT101_UPDATE
+    MVT101_UPDATE --> MVT101_LOOP
+    MVT101_LOOP -->|Loop finished| FINALIZE
+    BRANCH_MVT_TYPE -->|No Other| OTHER_MVT_SEARCH_04
+    OTHER_MVT_SEARCH_04 --> OTHER_MVT_DECISION_04_FOUND
+    OTHER_MVT_DECISION_04_FOUND -->|No| OTHER_MVT_SEARCH_08
+    OTHER_MVT_SEARCH_08 --> OTHER_MVT_DECISION_ANY_FOUND
+    OTHER_MVT_DECISION_04_FOUND -->|Yes| OTHER_MVT_DECISION_ANY_FOUND
+    OTHER_MVT_DECISION_ANY_FOUND -->|Yes| OTHER_MVT_UPDATE
+    OTHER_MVT_UPDATE --> FINALIZE
+    OTHER_MVT_DECISION_ANY_FOUND -->|No| FINALIZE
+    CHECK_TXN_MB1B -->|Yes Skip| FINALIZE
+    CHECK_UCOMM -->|Yes Skip| FINALIZE
+    CHECK_QM_SETUP -->|No Skip| FINALIZE
+    CHECK_RULES -->|No Skip| FINALIZE
+    FINALIZE --> END_COMPLETE
+  </div>
+</body>
+</html>
