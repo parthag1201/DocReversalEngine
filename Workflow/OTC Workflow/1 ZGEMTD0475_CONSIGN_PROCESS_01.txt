@@ -1,0 +1,47 @@
+*&---------------------------------------------------------------------*
+*& Report  ZGEMTD0475_CONSIGN_PROCESS_01
+*&
+*&---------------------------------------------------------------------*
+************************************************************************
+* McCain
+* Global/Local  : Local
+* List Site(s)  : SAF
+* FS Document ID: MTD_SAF_12_E01
+* TS Document ID: MTD_SAF_12_TS_E01
+* TS Title      : Consignment Process Enhancement
+* CTS No        : ED2K913904
+* Object Description: Program to be attached to output type ZCIT
+*                     (Consignment in Transit) which will be triggered
+*                     on PGI of the delivery.
+************************************************************************
+* Revision Log:
+* Init.  Author/Reviser  Date     Description of Change CTS# of Changes
+* 1   Sidharth Chauhan  29/10/2013 Initial version      ED2K913904
+************************************************************************
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  zgemtd0475_consign_process_01.
+
+TABLES: nast.
+
+* Include for global declarations
+INCLUDE zgnmtd0475_consign_process_top.
+
+* Include for subroutines
+INCLUDE zgnmtd0475_consign_process_f01.
+
+*&---------------------------------------------------------------------*
+*&      Form  entry
+*&---------------------------------------------------------------------*
+*       Entry Subroutine
+*----------------------------------------------------------------------*
+FORM entry USING return_code us_screen.                     "#EC *
+
+  return_code = 0.
+
+* Start processing
+  PERFORM sub_processing.
+
+ENDFORM.                    "ENTRY

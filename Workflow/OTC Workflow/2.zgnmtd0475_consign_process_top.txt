@@ -1,0 +1,33 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZGNMTD0475_CONSIGN_PROCESS_TOP
+*&---------------------------------------------------------------------*
+************************************************************************
+* McCain
+* Global/Local  : Local
+* List Site(s)  : SAF
+* FS Document ID: MTD_SAF_12_E01
+* TS Document ID: MTD_SAF_12_TS_E01
+* TS Title      : Consignment Process Enhancement
+* CTS No        : ED2K913904
+* Object Description: Program to be attached to output type ZCIT
+*                     (Consignment in Transit) which will be triggered
+*                     on PGI of the delivery. TOP include for global
+*                      declarations.
+************************************************************************
+* Revision Log:
+* Init.  Author/Reviser  Date     Description of Change CTS# of Changes
+* 1   Sidharth Chauhan  29/10/2013 Initial version      ED2K913904
+************************************************************************
+
+CONSTANTS: c_dummy_batch TYPE charg_d    VALUE 'CONSGNMENT',
+           c_exp_date    TYPE sy-datum   VALUE '99991231',
+           c_msgty_e     TYPE msgty      VALUE 'E',
+           c_msgty_s     TYPE msgty      VALUE 'S',
+           c_msgty_a     TYPE msgty      VALUE 'A',
+           c_x           TYPE flag       VALUE 'X',
+           c_mvt_309     TYPE bwart      VALUE '309',
+           c_ind_w       TYPE sobkz      VALUE 'W'.
+
+TYPES: tt_imseg TYPE STANDARD TABLE OF imseg.
+
+DATA: g_success TYPE flag.
