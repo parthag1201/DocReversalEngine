@@ -11,67 +11,92 @@
 </head>
 <body>
   <div class="mermaid">
-    graph TD
+    flowchart TD
     %% Node Definitions
-    START(Start Program)
-    VERIFY_CTX_1[Retrieve current program call stack]
-    VERIFY_CTX_2_LOOP[For each entry in call stack]
-    VERIFY_CTX_3_DECISION{Is main program SAPLMBWL & parameter IMSEG exists?}
-    VERIFY_CTX_4_PROCESS[Set confirmation flag lv_flag = X]
-    CHECK_TXN_MB1B{Is transaction MB1B?}
-    CHECK_FLAG{Is confirmation flag lv_flag set?}
-    END_HALT((Halt Execution))
-    ACQUIRE_DATA[Acquire goods movement data from SAP memory]
-    CHECK_UCOMM{Is user command OK_CHECK?}
-    CHECK_QM_SETUP{Does material have active QM setup type 08 or Z01?}
-    CHECK_RULES{Is lot type 08/Z01 AND mvt type 101/322/349/Z49?}
-    BRANCH_MVT_TYPE{Is movement type 101?}
-    MVT101_QUERY[Query custom table ZGMTD_CLD_PGI]
-    MVT101_LOOP[For each record found in custom table]
-    MVT101_CALC[Calculate new end date/time from record duration]
-    MVT101_UPDATE[Update inspection lot end date/time]
-    OTHER_MVT_SEARCH_04[Search for previous inspection lot type 04]
-    OTHER_MVT_DECISION_04_FOUND{Was type 04 lot found?}
-    OTHER_MVT_SEARCH_08[Search for previous inspection lot type 08 or Z01]
-    OTHER_MVT_DECISION_ANY_FOUND{Were any previous inspection lots found?}
-    OTHER_MVT_UPDATE[Update lot end date to be MAX latest_previous_lot_end_date, system_date]
-    FINALIZE[Finalize: Pass data to E_QALS & set E_ACTIVE flag]
-    END_COMPLETE((End Program))
+    A("Start")
+    B{"Current T-code is 'MB1B'?"}
+    C["Inspect call stack for 'SAPLMBWL' and 'IMSEG'"]
+    D{"Call stack analysis successful?"}
+    E["Set context flag lv_flag = 'X'"]
+    F{"Is context flag lv_flag = 'X'?"}
+    G[/"Access goods movement item data"/]
+    H{"Data access successful?"}
+    I{"User action is 'Check' (OK_CHECK)?"}
+    J[/"Query QMAT for inspection type '08' or 'Z01'"/]
+    K{"Material configured for '08' or 'Z01'?"}
+    L{"Insp. Type is ('08' or 'Z01') AND Mvmt Type is ('101', '322', '349', 'Z49')?"}
+    M{"Movement Type is '101'?"}
+    N[/"PATH A: Query custom table ZGMTD_CLD_PGI"/]
+    O[/"PATH B: Search QALS for previous inspection lot of type '04'"/]
+    P{"Type '04' lot found?"}
+    Q[/"Search QALS for previous lot of type '08' or 'Z01'"/]
+    R{"PGI records found from ZGMTD_CLD_PGI?"}
+    S["Loop Start: For each PGI record"]
+    T["Convert timestamp (hours) to seconds"]
+    U["Convert lot start date/time to combined timestamp"]
+    V["Add seconds to start timestamp for new end timestamp"]
+    W["Convert new end timestamp back to date and time"]
+    X["Overwrite inspection lot end date/time"]
+    Y["Loop End"]
+    Z{"Previous inspection lots found in QALS?"}
+    AA["Sort found lots by end date (descending)"]
+    AB["Read first record (latest lot)"]
+    AC["Compare latest end date with current system date"]
+    AD{"Is latest end date > system date?"}
+    AE["Set new lot end date = latest end date"]
+    AF["Set new lot end date = system date"]
+    AG[/"Pass modified inspection lot to e_qals"/]
+    AH["Set e_active flag to 'X'"]
+    END_NODE([End])
 
     %% Connections
-    START --> VERIFY_CTX_1
-    VERIFY_CTX_1 --> VERIFY_CTX_2_LOOP
-    VERIFY_CTX_2_LOOP -->|Next entry| VERIFY_CTX_3_DECISION
-    VERIFY_CTX_3_DECISION -->|Yes| VERIFY_CTX_4_PROCESS
-    VERIFY_CTX_4_PROCESS -->|Exit loop| CHECK_TXN_MB1B
-    VERIFY_CTX_3_DECISION -->|No| VERIFY_CTX_2_LOOP
-    VERIFY_CTX_2_LOOP -->|Loop finished| CHECK_TXN_MB1B
-    CHECK_TXN_MB1B -->|No| CHECK_FLAG
-    CHECK_FLAG -->|Yes| ACQUIRE_DATA
-    CHECK_FLAG -->|No| END_HALT
-    ACQUIRE_DATA --> CHECK_UCOMM
-    CHECK_UCOMM -->|No Post/Save| CHECK_QM_SETUP
-    CHECK_QM_SETUP -->|Yes| CHECK_RULES
-    CHECK_RULES -->|Yes| BRANCH_MVT_TYPE
-    BRANCH_MVT_TYPE -->|Yes 101| MVT101_QUERY
-    MVT101_QUERY --> MVT101_LOOP
-    MVT101_LOOP -->|Next record| MVT101_CALC
-    MVT101_CALC --> MVT101_UPDATE
-    MVT101_UPDATE --> MVT101_LOOP
-    MVT101_LOOP -->|Loop finished| FINALIZE
-    BRANCH_MVT_TYPE -->|No Other| OTHER_MVT_SEARCH_04
-    OTHER_MVT_SEARCH_04 --> OTHER_MVT_DECISION_04_FOUND
-    OTHER_MVT_DECISION_04_FOUND -->|No| OTHER_MVT_SEARCH_08
-    OTHER_MVT_SEARCH_08 --> OTHER_MVT_DECISION_ANY_FOUND
-    OTHER_MVT_DECISION_04_FOUND -->|Yes| OTHER_MVT_DECISION_ANY_FOUND
-    OTHER_MVT_DECISION_ANY_FOUND -->|Yes| OTHER_MVT_UPDATE
-    OTHER_MVT_UPDATE --> FINALIZE
-    OTHER_MVT_DECISION_ANY_FOUND -->|No| FINALIZE
-    CHECK_TXN_MB1B -->|Yes Skip| FINALIZE
-    CHECK_UCOMM -->|Yes Skip| FINALIZE
-    CHECK_QM_SETUP -->|No Skip| FINALIZE
-    CHECK_RULES -->|No Skip| FINALIZE
-    FINALIZE --> END_COMPLETE
+    A --> B
+    B -- "Yes, logic skipped" --> END_NODE
+    B -- "No" --> C
+    C --> D
+    D -- "Yes, successful" --> E
+    D -- "No, unsuccessful" --> F
+    E --> F
+    F -- "Yes, flag is set" --> G
+    F -- "No, flag not set" --> END_NODE
+    G --> H
+    H -- "Yes, successful" --> I
+    H -- "No, data access failed" --> END_NODE
+    I -- "Yes, action is 'Check'" --> END_NODE
+    I -- "No, action is 'Post' or 'Save'" --> J
+    J --> K
+    K -- "Yes, material is configured" --> L
+    K -- "No, not configured" --> END_NODE
+    L -- "Yes, core conditions met" --> M
+    L -- "No, core conditions not met" --> END_NODE
+    M -- "Yes, Path A" --> N
+    M -- "No, Path B" --> O
+    N --> R
+    O --> P
+    P -- "Yes, '04' lot found" --> Z
+    P -- "No, '04' lot not found" --> Q
+    Q --> Z
+    R -- "Yes, PGI records found" --> S
+    R -- "No, no PGI records found" --> AG
+    S --> T
+    T --> U
+    U --> V
+    V --> W
+    W --> X
+    X --> Y
+    Y -- "More records" --> S
+    Y -- "No more records" --> AG
+    Z -- "Yes, previous lots found" --> AA
+    Z -- "No, no previous lots found" --> AG
+    AA --> AB
+    AB --> AC
+    AC --> AD
+    AD -- "Yes" --> AE
+    AD -- "No" --> AF
+    AE --> AG
+    AF --> AG
+    AG --> AH
+    AH --> END_NODE
   </div>
 </body>
 </html>
