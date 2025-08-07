@@ -11,52 +11,36 @@
 </head>
 <body>
   <div class="mermaid">
-    graph TD;
+    graph TD
+    A(Start Program)
+    B(Gather User Input & Fetch Sales Data)
+    C{Start Loop: For Each Sales Item}
+    D{Is Item Rejected?}
+    E(Set Status to Rejected)
+    F{Determine Delivery Status}
+    G(Set Item Status based on Delivery Not/Partial/Full/Unknown)
+    H{Special Checks Required? e.g. High Value}
+    I(Perform Special Checks e.g. Credit Limit)
+    J{End Loop Iteration}
+    K(Aggregate Data & Prepare Final Report)
+    L[/Display Final Report to User/]
+    M(End Program)
 
-    A01((Start Program));
-    B01["Set default filter for Material Number '1000'-'1999'"];
-    C01[/User Defines Criteria on Selection Screen/];
-    D01{"Is 'Maximum Records' > 0?"};
-    E01[/Display Error: "Maximum records must be greater than 0"/];
-    F01[Query material master database MARA and store results in internal list];
-    G01{Was any data found?};
-    H01[/Display Info: "No materials found for the given criteria"/];
-    I01[Loop Start: For each material record in list];
-    J01[Increment Process Counter];
-    K01{"Was 'Special Check' box ticked?"};
-    L01{"Is Material Type 'FERT' or 'HALB'?"};
-    M01[Execute business rule for FERT/HALB];
-    N01[Execute business rule for other material types];
-    O01[/Display Record Details Material Number, Type, Group/];
-    P01[Loop End];
-    Q01[Print separator line];
-    R01[/Display "Total records processed:" with final count/];
-    S01((End Program));
-
-    A01 --> B01;
-    B01 --> C01;
-    C01 --> D01;
-    D01 -- No --> E01;
-    E01 --> C01;
-    D01 -- Yes --> F01;
-    F01 --> G01;
-    G01 -- No --> H01;
-    H01 --> Q01;
-    G01 -- Yes --> I01;
-    I01 --> J01;
-    J01 --> K01;
-    K01 -- No --> O01;
-    K01 -- Yes --> L01;
-    L01 -- Yes --> M01;
-    L01 -- No --> N01;
-    M01 --> O01;
-    N01 --> O01;
-    O01 --> P01;
-    P01 -- Iterate Next Record --> I01;
-    P01 -- Loop Complete --> Q01;
-    Q01 --> R01;
-    R01 --> S01;
-
+    A --> B
+    B --> C
+    C --> D
+    D -- Yes --> E
+    D -- No --> F
+    E --> J
+    F --> G
+    G --> H
+    H -- Yes --> I
+    H -- No --> J
+    I --> J
+    J -- Next Item --> C
+    J -- All Items Processed --> K
+    K --> L
+    L --> M
   </div>
 </body>
 </html>
