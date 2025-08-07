@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    graph TD
+    A(Start Program)
+    B[/User Selects File Source Local or Network & Provides Paths/]
+    C{Are All Required Paths Provided?}
+    D(End: Missing Path Information)
+    E[Initialize Application Log & Find Input Files .txt, .csv]
+    F{Any Valid Files Found?}
+    G(End: No Files to Process)
+    H[Process Each File]
+    I[Read File Content & Delete Original if from Network]
+    J[Validate & Segregate All Records in File]
+    K{File Contains Invalid Records?}
+    L[Create Timestamped Error File & Write Invalid Records]
+    M{File Contains Valid Records?}
+    N[For Each Valid Record: Update Customer Credit Data in DB]
+    O[Create Timestamped Archive File with Processed Records]
+    P[Save Final Application Log]
+    Q[/Display Final Summary Report/]
+    R(End Program)
+
+    A --> B
+    B --> C
+    C -- No --> D
+    C -- Yes --> E
+    E --> F
+    F -- No --> G
+    F -- Yes --> H
+    H -- Start or Next File --> I
+    I --> J
+    J --> K
+    K -- Yes --> L
+    L --> M
+    K -- No --> M
+    M -- Yes --> N
+    N --> O
+    O --> H
+    M -- No --> H
+    H -- No More Files --> P
+    P --> Q
+    Q --> R
+  </div>
+</body>
+</html>
