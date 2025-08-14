@@ -1,0 +1,193 @@
+/*
+====================================================
+  ABAP Crew Spec Generator - Custom CSS
+  Clean, modern, and Bootstrap-inspired styles for Streamlit
+  -----------------------------------------------------------
+  - Remove duplicate rules
+  - Use clear comments for easy customization
+  - Follow best practices for maintainability
+====================================================
+*/
+
+/* === 1. Base & Layout === */
+body, .stApp {
+  /* Fancy gradient background */
+  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%) !important;
+  color: #222 !important;
+  font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  min-height: 100vh;
+  transition: background 0.5s;
+}
+
+/* === 2. Card Components === */
+/* Fancy card with gradient border and hover effect */
+.bootstrap-card, .card {
+  background: rgba(255,255,255,0.95);
+  border-radius: 1.2rem;
+  box-shadow: 0 4px 32px 0 rgba(80,80,180,0.10), 0 1.5px 8px 0 rgba(80,80,180,0.07);
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+  color: #222;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s, border 0.3s;
+}
+.bootstrap-card::before, .card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 1.2rem;
+  padding: 2px;
+  background: linear-gradient(120deg, #a5b4fc 0%, #f472b6 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.bootstrap-card > *, .card > * {
+  position: relative;
+  z-index: 1;
+}
+.bootstrap-card:hover, .card:hover {
+  box-shadow: 0 8px 40px 0 rgba(80,80,180,0.18), 0 2px 16px 0 rgba(80,80,180,0.10);
+  border-color: #a5b4fc;
+}
+
+/* === 3. Titles & Subtitles === */
+/* Gradient text for title, subtle animation */
+.bootstrap-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #6366f1 0%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+  letter-spacing: -1px;
+  animation: gradient-move 3s linear infinite alternate;
+}
+@keyframes gradient-move {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+.bootstrap-subtitle {
+  font-size: 1.2rem;
+  color: #6366f1;
+  margin-bottom: 2rem;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* === 4. Buttons === */
+/* Fancy animated button with gradient and shadow */
+.bootstrap-btn, .stButton > button {
+  background: linear-gradient(90deg, #a5b4fc 0%, #f472b6 100%);
+  color: #fff !important;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 0.5rem 1.5rem;
+  margin-top: 1rem;
+  border: none;
+  box-shadow: 0 2px 8px 0 rgba(164, 120, 255, 0.10);
+  transition: background 0.3s, color 0.2s, box-shadow 0.2s, transform 0.1s;
+  font-size: 1.1rem;
+  position: relative;
+  overflow: hidden;
+}
+.bootstrap-btn::after, .stButton > button::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: linear-gradient(120deg, #f472b6 0%, #a5b4fc 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 0;
+  border-radius: 8px;
+}
+.bootstrap-btn:hover, .stButton > button:hover {
+  background: linear-gradient(90deg, #f472b6 0%, #a5b4fc 100%);
+  color: #fff !important;
+  box-shadow: 0 4px 16px 0 rgba(164, 120, 255, 0.18);
+  transform: translateY(-2px) scale(1.03);
+}
+.bootstrap-btn:active, .stButton > button:active {
+  transform: scale(0.98);
+}
+
+/* === 5. File Uploader === */
+/* === 5. File Uploader === */
+.stFileUploader label {
+  font-weight: 600;
+  color: #222;
+  font-size: 1.05rem;
+}
+/* Style the file upload button to match the app's theme */
+/* Fancy file upload button */
+.stFileUploader .st-c1, .stFileUploader button {
+  background: linear-gradient(90deg, #8d8781 0%, #464644 100%) !important;
+  color: #fff !important;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none !important;
+  box-shadow: 0 2px 8px 0 rgba(164, 120, 255, 0.10) !important;
+  transition: background 0.3s, color 0.2s, box-shadow 0.2s, transform 0.1s;
+  font-size: 1.05rem;
+  position: relative;
+  overflow: hidden;
+}
+.stFileUploader .st-c1:hover, .stFileUploader button:hover {
+  background: linear-gradient(90deg, #f472b6 0%, #a5b4fc 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 16px 0 rgba(164, 120, 255, 0.18) !important;
+  transform: translateY(-2px) scale(1.03);
+}
+.stFileUploader .st-c1:active, .stFileUploader button:active {
+  transform: scale(0.98);
+}
+
+/* === 6. Sidebar === */
+/* Fancy sidebar with gradient border */
+.sidebar .sidebar-content, .stSidebar {
+  background: linear-gradient(120deg, #f8fafc 60%, #e0e7ff 100%) !important;
+  color: #222 !important;
+  border-right: 4px solid #a5b4fc;
+  box-shadow: 2px 0 16px 0 rgba(80,80,180,0.04);
+}
+
+/* === 7. Utility Classes === */
+.text-center {
+  text-align: center !important;
+}
+.text-muted {
+  color: #888 !important;
+}
+
+/* === 8. Responsive Tweaks === */
+@media (max-width: 991px) {
+  .bootstrap-title {
+    font-size: 2rem;
+  }
+  .bootstrap-card, .card {
+    padding: 1.2rem 1rem;
+  }
+}
+@media (max-width: 600px) {
+  .bootstrap-title {
+    font-size: 1.4rem;
+  }
+  .bootstrap-card, .card {
+    padding: 0.7rem 0.5rem;
+  }
+}
+
+/* === 9. Customization Points === */
+/*
+  To change the main accent color, update the background-color in .bootstrap-btn and .bootstrap-btn:hover
+  To adjust card padding, edit the padding in .bootstrap-card, .card
+  For font changes, update the font-family in body, .stApp
+*/
