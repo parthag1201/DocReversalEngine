@@ -1,0 +1,46 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    graph TD
+    A(Start Program)
+    B(Gather User Input & Fetch Sales Data)
+    C{Start Loop: For Each Sales Item}
+    D{Is Item Rejected?}
+    E(Set Status to Rejected)
+    F{Determine Delivery Status}
+    G(Set Item Status based on Delivery Not/Partial/Full/Unknown)
+    H{Special Checks Required? e.g. High Value}
+    I(Perform Special Checks e.g. Credit Limit)
+    J{End Loop Iteration}
+    K(Aggregate Data & Prepare Final Report)
+    L[/Display Final Report to User/]
+    M(End Program)
+
+    A --> B
+    B --> C
+    C --> D
+    D -- Yes --> E
+    D -- No --> F
+    E --> J
+    F --> G
+    G --> H
+    H -- Yes --> I
+    H -- No --> J
+    I --> J
+    J -- Next Item --> C
+    J -- All Items Processed --> K
+    K --> L
+    L --> M
+  </div>
+</body>
+</html>
