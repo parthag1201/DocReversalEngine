@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    graph TD
+    A((Start))
+    B[/User Defines Analysis Criteria Date, Doc #, Max Records/]
+    C[Retrieve Sales Order Headers]
+    D{Sales Order Headers Found?}
+    E[Retrieve Associated Line Items for Found Headers]
+    F{Sales Order Items Found?}
+    G[/Display Message: No data found for the selection/]
+    H{More Line Items to Process?}
+    I{Item Category = TAN?}
+    J[Increase Net Value by 5%]
+    K[Increase Net Value by 2%]
+    L[Compile Final Report Data]
+    M{Grid Display Generation Successful?}
+    N[/Display Final Report in Grid/]
+    O[/Display Grid Generation Error Message/]
+    P((End))
+
+    A --> B
+    B --> C
+    C --> D
+    D -- Yes --> E
+    D -- No --> G
+    E --> F
+    F -- No --> G
+    F -- Yes --> H
+    G --> P
+    H -- Yes --> I
+    H -- No --> L
+    I -- Yes --> J
+    I -- No --> K
+    J --> H
+    K --> H
+    L --> M
+    M -- Yes --> N
+    M -- No --> O
+    N --> P
+    O --> P
+  </div>
+</body>
+</html>

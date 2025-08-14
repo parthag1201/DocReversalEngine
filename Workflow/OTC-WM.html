@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+flowchart TD
+    A(Start Program)
+    B[Input selection screen criteria Sales Org, Date Range]
+    C{Are inputs valid?}
+    D[Display error message]
+    E[Select sales order header data VBAK]
+    F[Select sales order item data VBAP]
+    G[Select customer data KNA1]
+    H[Consolidate data into internal list]
+    I{Is internal list empty?}
+    J[Display No data found for the specified criteria]
+    K[Initialize calculation fields]
+    L{What is the customer's group?}
+    M_wholesale[Set base rate = 3% Wholesale]
+    M_retail[Set base rate = 5% Retail]
+    M_internal[Set base rate = 1% Internal]
+    M_default[Set base rate = 0% and flag for review Default]
+    N{Does order contain a promotional material?}
+    O[Add 2% bonus to commission rate]
+    P[Calculate Final Commission]
+    Q{Is total net value > $50,000?}
+    R_high[Assign status High-Value Order and flag for approval]
+    R_standard[Assign status Standard Order]
+    S[Append results to final report list]
+    T_loop{More records to process?}
+    U[Display final report in formatted grid ALV]
+    Z(End Program)
+
+    A --> B
+    B --> C
+    C -->|Invalid| D
+    D --> Z
+    C -->|Valid| E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I -->|Yes| J
+    J --> Z
+    I -->|No| K
+    K --> L
+    L -->|Wholesale| M_wholesale
+    L -->|Retail| M_retail
+    L -->|Internal| M_internal
+    L -->|Default| M_default
+    M_wholesale --> N
+    M_retail --> N
+    M_internal --> N
+    M_default --> N
+    N -->|Yes| O
+    N -->|No| P
+    O --> P
+    P --> Q
+    Q -->|Yes| R_high
+    Q -->|No| R_standard
+    R_high --> S
+    R_standard --> S
+    S --> T_loop
+    T_loop -->|Yes| K
+    T_loop -->|No| U
+    U --> Z
+  </div>
+</body>
+</html>

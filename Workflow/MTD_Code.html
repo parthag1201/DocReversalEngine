@@ -1,0 +1,44 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mermaid Diagram</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+</head>
+<body>
+  <div class="mermaid">
+    graph TD;
+    A((Inspection Lot Created));
+    B{Is Custom Logic SR162489 Active for MTD Context?};
+    C((End No Change));
+    D{Is Inspection for a Return Order? Type 05 or MvT 655};
+    E(Calculate & Set End Date to Dec 31st of Current Year);
+    F{Is Action a Final Posting Not a Check?};
+    G(Gather Data & Check Prerequisites for Cool-Down e.g., Insp. Type 08/Z01);
+    H{Is Movement a Goods Receipt Type 101?};
+    I(Calculate End Date: Loop through Cool-Down Rules & Add Duration to Start Date);
+    J(Calculate End Date: Find Latest End Date from Historical Lots or use Today);
+    K(Update Inspection Lot with Final Calculated End Date);
+    L((End Lot Updated));
+
+    A --> B;
+    B -- Yes --> D;
+    B -- No --> C;
+    D -- Yes --> E;
+    E --> F;
+    D -- No --> F;
+    F -- Yes --> G;
+    F -- No --> K;
+    G --> H;
+    H -- Yes --> I;
+    H -- No --> J;
+    I --> K;
+    J --> K;
+    K --> L;
+  </div>
+</body>
+</html>
