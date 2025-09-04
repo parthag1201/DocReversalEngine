@@ -1,0 +1,32 @@
+# Python virtual environments and env files
+FSTS_Langchain/Streamlit/venv/
+FSTS_Langchain/Streamlit/.env
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Python cache/artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# VS Code
+.vscode/
+
+
+# MicroServicePython BTP
+FSTS_Langchain/MicroServicePython BTP/outputs/
+FSTS_Langchain/MicroServicePython BTP/last_run_output/
+FSTS_Langchain/MicroServicePython BTP/*.pem
+FSTS_Langchain/MicroServicePython BTP/*.log
+FSTS_Langchain/MicroServicePython BTP/*.pdf
+FSTS_Langchain/MicroServicePython BTP/.env
+FSTS_Langchain/MicroServicePython BTP/.cfignore
+FSTS_Langchain/MicroServicePython BTP/__pycache__/
+FSTS_Langchain/MicroServicePython BTP/*.py[cod]
+FSTS_Langchain/MicroServicePython BTP/*.pyo
+FSTS_Langchain/MicroServicePython BTP/*.pyd

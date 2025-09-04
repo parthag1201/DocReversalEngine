@@ -1,0 +1,66 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZXQPLU02
+*&---------------------------------------------------------------------*
+
+ CONSTANTS: lc_exit_cdwn TYPE zgxap_exit_id     VALUE 'SR162489',
+*            Business ID
+            lc_bus_0420  TYPE zgxap_business_id VALUE 'MTD',
+*            Local/Global Indicator
+            lc_glid      TYPE zgxap_glid        VALUE 'GT'.
+
+*            Active Flag for User exit activation
+ DATA:      l_flg_act      TYPE zgxap_flg_active.
+
+**---Begin of change WO0000000182619 - Return Order IL date in future   "++ANKAUR
+ CONSTANTS: lc_art     TYPE qpart   VALUE '05',
+            lc_bwart   TYPE bwart   VALUE '655',
+            lc_enddate TYPE char4   VALUE '1231',
+            lc_active  TYPE qm00-qkz VALUE 'X'.
+
+ DATA: l_cal_key TYPE fabkl,
+       l_end_yr  TYPE bjahr,
+       l_enddate TYPE qprende.
+**---End of change WO0000000182619 - Return Order IL date in future
+
+* This method has been used in order to ensure whether Exit is active
+ CALL METHOD zcl_gxap_common_class=>check_exit_control
+   EXPORTING
+     im_exit_id     = lc_exit_cdwn " 'SR162489'
+     im_business_id = lc_bus_0420         "MTD
+     im_glid        = lc_glid
+   IMPORTING
+     ex_flg_active  = l_flg_act.
+
+* If Flag is active in the table then Cool Dwn Stock type
+ IF l_flg_act IS NOT INITIAL.
+
+**---Begin of change WO0000000182619 - Return Order IL date in future   "++ANKAUR
+
+   IF i_qals-art EQ lc_art OR i_qals-bwart EQ lc_bwart.
+**--Fetch the Calender key
+     SELECT SINGLE fabkl
+       FROM t001w
+       INTO l_cal_key
+       WHERE werks EQ i_qals-werk.
+
+**--Fetch the end year for that calender key from the factory calender
+     IF l_cal_key IS NOT INITIAL.
+       SELECT SINGLE bjahr
+         FROM tfacd
+         INTO l_end_yr
+         WHERE ident EQ l_cal_key.
+**--Concatenate the End date and year from factory calender
+       IF sy-subrc EQ 0.
+         CONCATENATE l_end_yr lc_enddate INTO l_enddate.
+         i_qals-paendterm = l_enddate.  "Inspection lot End date
+       ENDIF.
+     ENDIF.
+
+     e_qals = i_qals.
+     e_active = lc_active.
+   ENDIF.
+**---End of change WO0000000182619 - Return Order IL date in future   "++ANKAUR
+
+   INCLUDE zgnmtdsr162489_02.
+
+ ENDIF.

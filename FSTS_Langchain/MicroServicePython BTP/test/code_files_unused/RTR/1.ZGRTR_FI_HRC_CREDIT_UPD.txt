@@ -1,0 +1,125 @@
+*&---------------------------------------------------------------------*
+*& Report ZGRTR_FI_HRC_CREDIT_UPD
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zgrtr_fi_hrc_credit_upd.
+
+*$-Top Include
+INCLUDE zgrtr_fi_hrc_credit_top.
+
+*$-Selection-screen
+INCLUDE zgrtr_fi_hrc_credit_sel.
+
+*$- Routines
+INCLUDE zgrtr_fi_hrc_credit_f01.
+
+* Begin of chg by Mohit on 26 Sep 2024
+*$=======================================================$*
+*$ At-Selection-Screen On Value Request                   *
+*$=======================================================$*
+*-F4 help for input file
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_ppath.
+  IF r_ps IS NOT INITIAL.
+    PERFORM f4help_pres_server USING p_ppath.  "Presentation File path
+  ENDIF.
+
+* End of chg
+
+*$=======================================================$*
+*$ at-Selection-Screen Output                             *
+*$=======================================================$*
+*$-Selection Screen Display Attributes Changes
+AT SELECTION-SCREEN OUTPUT.
+*$-  Modify Screen
+  PERFORM modify_screen USING r_ps
+                              r_as.
+
+*$=======================================================$*
+*$ at-Selection-Screen On Value Request                   *
+*$=======================================================$*
+*$- Selection Screen - Value Request
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_ipath.
+
+*$- File selection popup
+  PERFORM get_file_path USING p_ipath.
+
+*$=======================================================$*
+*$ at-Selection-Screen On Value Request                   *
+*$=======================================================$*
+*$- Selection Screen - Value Request
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_epath.
+
+*$- File selection popup
+  PERFORM get_error_file_path USING p_epath.
+
+*$=======================================================$*
+*$ at-Selection-Screen On Value Request                   *
+*$=======================================================$*
+*$- Selection Screen - Value Request
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_bpath.
+
+*$- File selection popup
+  PERFORM get_file_path USING p_bpath.
+
+
+INITIALIZATION.
+  sy-title = 'Credit Data Update Engine'(s07).
+  s01 = 'Upload File Parameters'(s01).
+  s02 = 'File Location'(s02).
+  s03 = 'Application Server'(s03).
+  s04 = 'Presentation Server'(s04).
+  s05 = 'Application serever File Information'(s05).
+  s06 = 'Presentation server File Information'(s06).
+  s07 = 'General Options'(s07).
+
+
+*$=======================================================$*
+*$ Start-Of-Selection                                     *
+*$=======================================================$*
+START-OF-SELECTION.
+
+*$- Validate the user inputs
+  PERFORM val_usr_inp    USING r_ps
+                               r_as
+                               p_ppath
+                               p_ipath
+                               p_epath
+                         CHANGING
+                               v_abort
+                               v_emsg.
+
+*$- Validate the user inputs
+  PERFORM create_bal_log USING gv_log_handle.
+
+*$- Validate the file path
+  PERFORM validate_fpath USING r_ps
+                               r_as
+                               p_ppath
+                               p_ipath
+                               p_epath
+                         CHANGING
+                               t_files
+                               v_abort
+                               v_emsg.
+
+
+*$- Remove unwanted file names from list
+  PERFORM rv_file_names  CHANGING
+                                t_files
+                                v_abort
+                                v_emsg.
+
+
+*$- Load  and process Files
+  PERFORM load_process_files USING    t_files
+                                      r_ps
+                                      r_as
+                                      p_epath
+                                      p_bpath
+                             CHANGING t_disp
+                                      v_abort
+                                      v_emsg.
+
+END-OF-SELECTION.
+  PERFORM write_log.

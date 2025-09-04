@@ -1,0 +1,1689 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZGRTR_FI_HRC_CREDIT_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+FORM f4help_pres_server  USING iv_ppath  TYPE eseftappl.
+
+  DATA: lv_rc           TYPE i,
+        lv_window_title TYPE string.
+
+  DATA: ct_file_table TYPE filetable,
+        ls_file_table TYPE file_table.
+
+  lv_window_title = 'Select a file'(001).
+
+  CALL METHOD cl_gui_frontend_services=>file_open_dialog
+    EXPORTING
+      window_title = lv_window_title
+    CHANGING
+      file_table   = ct_file_table
+      rc           = lv_rc.
+  IF sy-subrc = 0.
+    READ TABLE ct_file_table INTO ls_file_table INDEX 1.
+    iv_ppath = ls_file_table-filename.
+  ENDIF.
+
+ENDFORM.
+
+
+
+*&      Form  MODIFY_SCREEN
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_R_PS  text
+*      -->P_R_AS  text
+*----------------------------------------------------------------------*
+FORM modify_screen  USING    pr_ps
+                             pr_as.
+
+  LOOP AT SCREEN.
+    IF pr_ps = 'X'.
+      IF screen-group1 = 'APS'.
+        screen-active  = 0.
+        screen-input   = 0.
+        screen-output  = 0.
+      ENDIF.
+    ENDIF.
+
+    IF pr_as = 'X'.
+      IF screen-group1 = 'PSR'.
+        screen-active  = 0.
+        screen-input   = 0.
+        screen-output  = 0.
+      ENDIF.
+    ENDIF.
+    MODIFY SCREEN.
+  ENDLOOP.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_FILE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_R_PS  text
+*      <--P_P_PPATH  text
+*----------------------------------------------------------------------*
+FORM get_file  USING    pr_ps   TYPE char1
+               CHANGING pv_path TYPE eseftappl.
+
+  CHECK NOT pr_ps IS INITIAL.
+
+  DATA lv_fname TYPE rlgrap-filename.
+
+  lv_fname = pv_path.
+
+  CALL FUNCTION 'WS_FILENAME_GET'                           "#EC *
+    EXPORTING
+      def_filename     = lv_fname
+      def_path         = '/'
+      mask             = ',*.*,*.*.'
+      mode             = 'O'
+      title            = 'Get filename'(001) "'Get filename'
+    IMPORTING
+      filename         = lv_fname
+    EXCEPTIONS
+      inv_winsys       = 01
+      no_batch         = 02
+      selection_cancel = 03
+      selection_error  = 04.
+
+  CLEAR pv_path.
+  pv_path = lv_fname.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_FILE_PATH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_P_IPATH  text
+*----------------------------------------------------------------------*
+FORM get_file_path  USING lv_ipath.
+  CALL FUNCTION '/SAPDMC/LSM_F4_SERVER_FILE'
+    IMPORTING
+      serverfile       = lv_ipath
+    EXCEPTIONS
+      canceled_by_user = 1
+      OTHERS           = 2.
+  IF sy-subrc <> 0.
+*    CLEAR:lv_path.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_ERROR_FILE_PATH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_P_EPATH  text
+*----------------------------------------------------------------------*
+FORM get_error_file_path USING lv_epath.
+  CALL FUNCTION '/SAPDMC/LSM_F4_SERVER_FILE'
+    IMPORTING
+      serverfile       = lv_epath
+    EXCEPTIONS
+      canceled_by_user = 1
+      OTHERS           = 2.
+  IF sy-subrc <> 0.
+*    CLEAR:lv_path.
+  ENDIF.
+
+
+ENDFORM.
+" get_file
+*&---------------------------------------------------------------------*
+*&      Form  val_usr_inp
+*&---------------------------------------------------------------------*
+FORM val_usr_inp  USING pr_ps     TYPE char1
+                        pr_as     TYPE char1
+                        pv_ppath  TYPE eseftappl
+                        pv_ipath  TYPE eseftappl
+                        pv_epath  TYPE eseftappl
+               CHANGING pv_abort  TYPE char1
+                        pv_emsg   TYPE string.
+
+*$- Presentation Server - If file path is initial
+  IF NOT pr_ps IS INITIAL.
+    IF pv_ppath IS INITIAL.
+      pv_abort = 'X'.
+      MOVE 'Enter the input file path. !!!'(007) TO pv_emsg.
+      MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+      LEAVE TO SCREEN 0.
+    ENDIF.
+  ENDIF.
+
+*$- Application Server
+  IF NOT pr_as IS INITIAL.
+
+*$- Input file path is initial
+    IF pv_ipath IS INITIAL.
+      pv_abort = 'X'.
+      MOVE 'Enter the input file path. !!!'(007) TO pv_emsg.
+      MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+      LEAVE TO SCREEN 0.
+    ENDIF.
+
+*$- Error file path is initial
+    IF pv_epath IS INITIAL.
+      pv_abort = 'X'.
+      MOVE 'Enter the Error file path. !!!'(009) TO pv_emsg.
+      MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+      LEAVE TO SCREEN 0.
+    ENDIF.
+
+*$- Backup file path is initial
+    IF pv_epath IS INITIAL.
+      pv_abort = 'X'.
+      MOVE 'Enter the Bakup file path. !!!'(009) TO pv_emsg.
+      MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+      LEAVE TO SCREEN 0.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " val_usr_inp
+*&---------------------------------------------------------------------*
+*&      Form  validate_fpath
+*&---------------------------------------------------------------------*
+FORM validate_fpath  USING    pr_ps     TYPE char1
+                              pr_as     TYPE char1
+                              pv_ppath  TYPE eseftappl
+                              pv_ipath  TYPE eseftappl
+                              pv_epath  TYPE eseftappl
+                     CHANGING pt_files  TYPE tt_files
+                              pv_abort  TYPE char1
+                              pv_emsg   TYPE string.
+
+  CHECK pv_abort IS INITIAL.
+
+  IF NOT pr_ps IS INITIAL.
+*$- Validate Presentation Server Path
+    PERFORM val_pser USING pv_ppath
+                  CHANGING pt_files
+                           pv_abort
+                           pv_emsg.
+  ELSE.
+*$- Validate Applcation Server Path
+    PERFORM val_aser USING pv_ipath
+                           pv_epath
+                  CHANGING pt_files
+                           pv_abort
+                           pv_emsg.
+  ENDIF.
+
+
+ENDFORM.                    " validate_fpath
+*&---------------------------------------------------------------------*
+*&      Form  val_pser
+*&---------------------------------------------------------------------*
+FORM val_pser  USING    pv_ppath  TYPE eseftappl
+               CHANGING pt_files  TYPE tt_files
+                        pv_abort  TYPE char1
+                        pv_emsg   TYPE string.
+
+  CHECK NOT pv_ppath IS INITIAL.
+
+  DATA lv_fname TYPE string.
+  DATA lv_slash TYPE char1.
+  DATA lv_rslt  TYPE c LENGTH 1.
+
+  CLEAR pv_abort.
+  REFRESH pt_files[].
+
+  lv_fname = pv_ppath.
+
+  CALL METHOD cl_gui_frontend_services=>file_exist
+    EXPORTING
+      file                 = lv_fname
+    RECEIVING
+      result               = lv_rslt
+    EXCEPTIONS
+      cntl_error           = 1
+      error_no_gui         = 2
+      wrong_parameter      = 3
+      not_supported_by_gui = 4
+      OTHERS               = 5.
+
+  IF lv_rslt NE 'X'.
+    pv_abort = 'X'.
+    MOVE 'Invalid File Name !!!.'(002) TO pv_emsg.
+    MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+    LEAVE TO SCREEN 0.
+  ENDIF.
+
+*$- Get Directory Slash ( '/' or '\' )
+  PERFORM get_dir_slash USING pv_ppath
+                     CHANGING lv_slash.
+
+*$- Manually append File Name - If it is Presentation server
+  PERFORM append_fname USING pv_ppath
+                             lv_slash
+                    CHANGING pt_files.
+
+ENDFORM.                    " val_pser
+*&---------------------------------------------------------------------*
+*&      Form  get_dir_slash
+*&---------------------------------------------------------------------*
+FORM get_dir_slash  USING    pv_path  TYPE eseftappl
+                    CHANGING pv_slash TYPE char1.
+
+  CHECK NOT pv_path IS INITIAL.
+
+  DATA w_rslt TYPE match_result_tab.
+
+*$- Get the diretory slash
+  CLEAR pv_slash.
+  FIND FIRST OCCURRENCE OF '\' IN pv_path RESULTS w_rslt.
+  IF NOT w_rslt IS INITIAL.
+    pv_slash = '\'.
+  ELSE.
+    pv_slash = '/'.
+  ENDIF.
+
+ENDFORM.                    " get_dir_slash
+*&---------------------------------------------------------------------*
+*&      Form  append_fname
+*&---------------------------------------------------------------------*
+FORM append_fname  USING    pv_path  TYPE eseftappl
+                            pv_slash TYPE char1
+                   CHANGING pt_files TYPE tt_files.
+
+  CHECK NOT pv_path IS INITIAL.
+
+  DATA t_dir   TYPE TABLE OF ty_dir.
+  DATA w_dir   TYPE ty_dir.
+  DATA lv_cnt  TYPE i.
+  DATA lv_path TYPE string.
+
+  lv_path = pv_path.
+
+  SPLIT lv_path AT pv_slash INTO TABLE t_dir.
+
+  DESCRIBE TABLE t_dir LINES lv_cnt.
+  READ TABLE t_dir INTO w_dir INDEX lv_cnt.
+
+*$- Removing the file name
+  REPLACE ALL OCCURRENCES OF w_dir-values IN lv_path WITH ''
+  IGNORING CASE.
+
+*$- Manually inserting the file name
+  CLEAR w_files.
+  w_files-dirname = lv_path.
+  w_files-name    = w_dir-values.
+  APPEND w_files TO pt_files.
+
+ENDFORM.                    " append_fname
+*&---------------------------------------------------------------------*
+*&      Form  val_aser
+*&---------------------------------------------------------------------*
+FORM val_aser   USING   pv_ipath  TYPE eseftappl
+                        pv_epath  TYPE eseftappl
+               CHANGING pt_files  TYPE tt_files
+                        pv_abort  TYPE char1
+                        pv_emsg   TYPE string.
+
+  DATA lt_files TYPE tt_files.
+
+  REFRESH pt_files[].
+
+*$- Validate Applcation Server Path - Should not have file name
+  IF pv_ipath CS '.txt' OR
+     pv_ipath CS '.TXT' OR
+     pv_ipath CS '.CSV' OR
+     pv_ipath CS '.csv' OR
+     pv_epath CS '.txt' OR
+     pv_epath CS '.TXT' OR
+     pv_epath CS '.CSV' OR
+     pv_epath CS '.csv'.
+    pv_abort = 'X'.
+    MOVE 'File path should not contains the file name. !!!'(003) TO pv_emsg.
+    MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+    LEAVE TO SCREEN 0.
+  ENDIF.
+
+*$- Validate Applcation Server Path - Input path
+  IF NOT pv_ipath IS INITIAL.
+*$- Get Files Name
+    PERFORM get_files USING pv_ipath
+                   CHANGING lt_files
+                            pv_abort.
+    IF NOT pv_abort IS INITIAL.
+      MOVE 'Input file path is wrong. !!!'(004) TO pv_emsg.
+      MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+      LEAVE TO SCREEN 0.
+    ENDIF.
+    pt_files[] = lt_files[].
+  ENDIF.
+
+*$- Validate Applcation Server Path - Backup path
+*  IF NOT pv_epath IS INITIAL.
+**$- Get Files Name
+*    PERFORM validate_path USING pv_epath
+*                      CHANGING pv_abort.
+*    IF NOT pv_abort IS INITIAL.
+*      MOVE 'Error file path is wrong. !!!'(006) TO pv_emsg.
+*      MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+*      LEAVE TO SCREEN 0.
+*    ENDIF.
+*  ENDIF.
+
+ENDFORM.                    " val_aser
+*&---------------------------------------------------------------------*
+*&      Form  get_files
+*&---------------------------------------------------------------------*
+FORM get_files  USING  pv_path  TYPE eseftappl
+             CHANGING  pt_files TYPE tt_files
+                       pv_abort TYPE char1.
+
+  DATA : lv_pvalue TYPE rvari_vnam,
+         lv_dname  TYPE /hex/dir_name.
+
+  CLEAR pv_abort.
+  lv_dname = pv_path.
+
+*$- Get Files Name
+  REFRESH pt_files[].
+  CALL FUNCTION '/HEX/SUBST_GET_FILE_LIST'
+    EXPORTING
+      dirname      = lv_dname
+      filenm       = ' '
+    TABLES
+      file_list    = pt_files
+    EXCEPTIONS
+      access_error = 1
+      OTHERS       = 2.
+
+  IF sy-subrc <> 0.
+    pv_abort = 'X'.
+  ENDIF.
+
+ENDFORM.                    " get_files
+*&---------------------------------------------------------------------*
+*&      Form  validate_path
+*&---------------------------------------------------------------------*
+FORM validate_path   USING    pv_path  TYPE eseftappl
+                    CHANGING pv_abort  TYPE char1.
+
+  DATA : lv_totallen  TYPE i,
+         lv_strlen    TYPE i,
+         lv_path      TYPE rlgrap-filename,
+         lv_dir_slash TYPE c VALUE '/'.
+
+  lv_path = pv_path.
+  lv_totallen = strlen( lv_path ).
+  lv_strlen   = lv_totallen - 1.
+
+  IF lv_path+lv_strlen(1) NE lv_dir_slash.
+    CONCATENATE lv_path lv_dir_slash INTO lv_path.
+  ENDIF.
+  CONCATENATE lv_path 'HRTEST.TXT' INTO lv_path.
+*- Validate path
+  OPEN DATASET lv_path FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
+  IF sy-subrc <> 0.
+    pv_abort = 'X'.
+  ELSE.
+    CLOSE DATASET lv_path.
+    DELETE DATASET lv_path.
+  ENDIF.
+
+ENDFORM.                    " validate_path
+*&---------------------------------------------------------------------*
+*&      Form  rv_file_names
+*&---------------------------------------------------------------------*
+FORM rv_file_names CHANGING  pt_files TYPE tt_files
+                             pv_abort TYPE char1
+                             pv_emsg  TYPE string.
+
+  DATA : lt_files TYPE STANDARD TABLE OF ty_files,
+         ls_files TYPE ty_files.
+
+  CHECK pv_abort IS INITIAL.
+
+*$- Remove unwanted file name from list
+  lt_files = pt_files.
+  REFRESH pt_files.
+  LOOP AT lt_files INTO ls_files.
+    IF ls_files-name CS '.TXT' OR
+       ls_files-name CS '.txt' OR
+       ls_files-name CS '.CSV' OR
+       ls_files-name CS '.csv'.
+      APPEND ls_files TO pt_files.
+    ENDIF.
+  ENDLOOP.
+
+  IF pt_files[] IS INITIAL.
+    pv_abort = 'X'.
+    MOVE 'Either file path is incorrect or the directory is empty. Please check and retry.'(010) TO pv_emsg.
+    MESSAGE pv_emsg TYPE 'I' DISPLAY LIKE 'E'.
+    LEAVE TO SCREEN 0.
+  ENDIF.
+
+ENDFORM.                    " rv_file_names
+*&---------------------------------------------------------------------*
+*&      Form  load_process_files
+*&---------------------------------------------------------------------*
+FORM load_process_files  USING    pt_files  TYPE tt_files
+                                  p_ps      TYPE char1
+                                  p_as      TYPE char1
+                                  pv_epath  TYPE eseftappl
+                                  pv_bpath  TYPE eseftappl
+                         CHANGING
+                                  pt_disp   TYPE tt_disp
+                                  pv_abort  TYPE char1
+                                  pv_emsg   TYPE string.
+
+  DATA: lt_disp             TYPE TABLE OF zgrtr_s_credit_data,
+***Start of changes from Pavithra on 27/03/2024
+        lt_disp_succ        TYPE TABLE OF zgrtr_s_credit_data,
+        lt_disp_err         TYPE TABLE OF zgrtr_s_credit_data,
+        lv_next_review_date TYPE char10,
+        lv_last_review_date TYPE char10,
+***End of changes from Pavithra on 27/03/2024
+        ls_input            TYPE /hex/input,
+        status_id           TYPE /hex/status_id,
+        lv_ser_flag         TYPE char1,
+        lv_fpath            TYPE string,
+        lv_temp             TYPE string,
+        lv_slash            TYPE char1,
+        lw_rslt             TYPE match_result_tab,
+        lv_tlen             TYPE i,
+        lv_slen             TYPE i,
+        lv_cnt              TYPE i VALUE 1,
+        lv_flen             TYPE i,
+        lv_lines            TYPE i,
+        ls_disp             TYPE ty_disp,
+        lv_bpath            TYPE eseftappl,
+        lv_epath            TYPE eseftappl,
+        lv_carriage         TYPE c,
+        lv_seperator        TYPE c,
+        lv_msgno            TYPE bal_s_msg-msgno,
+        lv_msgv1            TYPE symsgv,
+        lv_msgv2            TYPE symsgv,
+        lv_msgv3            TYPE symsgv,
+        lv_msgv4            TYPE symsgv.
+
+  FIELD-SYMBOLS <fs_disp> TYPE STANDARD TABLE.
+
+  IF p_ps = 'X'.
+    lv_ser_flag = 'P'.
+  ELSE.
+    lv_ser_flag = 'A'.
+  ENDIF.
+
+  SORT pt_files BY mtime ASCENDING. " added by Mohit on 3 oct 24
+  LOOP AT pt_files INTO w_files.
+    CHECK NOT w_files-dirname IS INITIAL AND NOT w_files-name IS INITIAL.
+
+*$  Read Contents from the input file
+*$- Get Directory Slash ( '/' or '\' )
+    CLEAR lv_slash.
+    FIND FIRST OCCURRENCE OF '\' IN w_files-dirname RESULTS lw_rslt.
+    IF NOT lw_rslt IS INITIAL.
+      lv_slash = '\'.
+    ELSE.
+      lv_slash = '/'.
+    ENDIF.
+
+    lv_carriage = cl_abap_char_utilities=>cr_lf+0(1).
+*$- Form File Name
+    lv_tlen = strlen( w_files-dirname ).
+    lv_slen = lv_tlen - 1.
+    IF w_files-dirname+lv_slen(1) EQ lv_slash.
+      CONCATENATE w_files-dirname w_files-name INTO lv_fpath.
+    ELSE.
+      CONCATENATE w_files-dirname lv_slash
+      w_files-name INTO lv_fpath.
+    ENDIF.
+
+    IF lv_ser_flag = 'P'.
+*$- Read Contents
+      CALL METHOD cl_gui_frontend_services=>gui_upload
+        EXPORTING
+          filename                = lv_fpath
+          filetype                = 'ASC'
+*         header_length           = 0
+*        IMPORTING
+*         filelength              = lv_flen
+        CHANGING
+          data_tab                = t_inp
+        EXCEPTIONS
+          file_open_error         = 1
+          file_read_error         = 2
+          no_batch                = 3
+          gui_refuse_filetransfer = 4
+          invalid_type            = 5
+          no_authority            = 6
+          unknown_error           = 7
+          bad_data_format         = 8
+          header_not_allowed      = 9
+          separator_not_allowed   = 10
+          header_too_long         = 11
+          unknown_dp_error        = 12
+          access_denied           = 13
+          dp_out_of_memory        = 14
+          disk_full               = 15
+          dp_timeout              = 16
+          OTHERS                  = 17.
+
+      IF sy-subrc <> 0.
+        CASE sy-subrc.
+          WHEN 1.
+            v_emsg = 'File_open_error'.
+          WHEN 2.
+            v_emsg = 'File_read_error'.
+          WHEN 3.
+            v_emsg = 'No_batch'.
+          WHEN 4.
+            v_emsg = 'GUI_refuse_filetransfer'.
+          WHEN 5.
+            v_emsg = 'Invalid_type'.
+          WHEN 6.
+            v_emsg = 'No_authority'.
+          WHEN 7.
+            v_emsg = 'Unknown_error'.
+          WHEN 8.
+            v_emsg = 'Bad_data_format'.
+          WHEN 9.
+            v_emsg = 'Header_not_allowed'.
+          WHEN 10.
+            v_emsg = 'Separator_not_allowed'.
+          WHEN 11.
+            v_emsg = 'Header_too_long'.
+          WHEN 12.
+            v_emsg = 'Unknown_dp_error'.
+          WHEN 13.
+            v_emsg = 'Access_denied'.
+          WHEN 14.
+            v_emsg = 'Dp_out_of_memory'.
+          WHEN 15.
+            v_emsg = 'Disk_full'.
+          WHEN 16.
+            v_emsg = 'Dp_timeout'.
+          WHEN OTHERS.
+            v_emsg = 'Unknown_error'.
+        ENDCASE.
+        v_abort = 'X'.
+      ENDIF.
+
+    ELSEIF lv_ser_flag = 'A'.
+*$- Read Contents
+      OPEN DATASET lv_fpath FOR INPUT IN TEXT MODE ENCODING DEFAULT  MESSAGE gv_msg IGNORING CONVERSION ERRORS.
+      IF sy-subrc = 0.
+        DO.
+          READ DATASET lv_fpath INTO ls_input-contents.
+          IF sy-subrc EQ 0.
+            APPEND ls_input TO t_inp.
+          ELSE.
+            EXIT.
+          ENDIF.
+        ENDDO.
+      ELSE.
+
+        CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+        lv_msgv1 = lv_fpath.
+        lv_msgno = '186'.
+        PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                     gc_problem_class_important    " Class Problem Level
+                                     gc_error                      " Error Message
+                                     gc_message_id                 " Message Class
+                                     lv_msgno                      " Message Number
+                                     lv_msgv1                      " Message Dynamic Content(&) 1
+                                     lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                     lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                     lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                     gc_detail_level1.             " Application Detail Level
+
+        APPEND INITIAL LINE TO gt_return ASSIGNING FIELD-SYMBOL(<fs_return>).
+        <fs_return>-id = gc_message_id.
+        <fs_return>-number = lv_msgno.
+        <fs_return>-message_v1 = lv_msgv1.
+        <fs_return>-message_v2 = lv_msgv2.
+        <fs_return>-message_v3 = lv_msgv3.
+        <fs_return>-type       = gc_error.
+      ENDIF.
+
+      CLOSE DATASET lv_fpath.
+      DELETE DATASET lv_fpath.
+    ENDIF.
+    APPEND LINES OF t_inp TO t_input.
+    CLEAR t_inp.
+
+    DELETE t_input WHERE contents = space.
+    IF t_input[] IS INITIAL.
+      v_abort = 'X'.
+      CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+      lv_msgv1 = lv_fpath.
+      lv_msgno = '187'.
+      PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                   gc_problem_class_important    " Class Problem Level
+                                   gc_error                      " Error Message
+                                   gc_message_id                 " Message Class
+                                   lv_msgno                      " Message Number
+                                   lv_msgv1                      " Message Dynamic Content(&) 1
+                                   lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                   lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                   lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                   gc_detail_level1.             " Application Detail Level
+
+      APPEND INITIAL LINE TO gt_return ASSIGNING <fs_return>.
+      <fs_return>-id = gc_message_id.
+      <fs_return>-number = lv_msgno.
+      <fs_return>-message_v1 = lv_msgv1.
+      <fs_return>-message_v2 = lv_msgv2.
+      <fs_return>-message_v3 = lv_msgv3.
+      <fs_return>-type       = gc_error.
+      CONTINUE.
+    ENDIF.
+
+
+    IF p_dlimt IS INITIAL.
+      lv_seperator = '|'.
+    ELSE.
+      lv_seperator = p_dlimt.
+    ENDIF.
+* Begin of changes by pavankumar on 27.02.2024
+    DATA: lt_knvv TYPE STANDARD TABLE OF knvv,
+          ls_knvv TYPE knvv. "changed by pavankumar on 27.02.2024
+    SELECT *
+      FROM knvv
+      INTO TABLE lt_knvv
+      WHERE zzhrc_prospect_id <> ' '.
+
+
+* End of changes   by pavankumar on 27.02.2024
+    LOOP AT  t_input INTO ls_input.
+      IF lv_temp = ls_input-contents OR sy-tabix = 1.
+        lv_temp = ls_input-contents.
+        REPLACE ALL OCCURRENCES OF lv_carriage IN ls_input-contents WITH ''.
+        CONTINUE.
+      ENDIF.
+      REPLACE ALL OCCURRENCES OF lv_carriage IN ls_input-contents WITH ''.
+      REPLACE ALL OCCURRENCES OF '"' IN ls_input-contents WITH ''.
+      SPLIT ls_input-contents AT lv_seperator INTO
+                                          ls_disp-customer_number
+                                          ls_disp-hrc_prospect_id
+                                          ls_disp-credit_account_number
+                                          ls_disp-company_code
+                                          ls_disp-credit_limit
+*Start of changes from Pavithra on 02/04/2024
+                                          lv_next_review_date
+*                                          ls_disp-next_review_date
+*End of changes from Pavithra on 02/04/2024
+                                          ls_disp-notes
+                                          ls_disp-risk_category
+                                          ls_disp-customer_group
+                                          ls_disp-credit_rep_group
+                                          ls_disp-account_block
+                                          ls_disp-credit_control_area
+                                          ls_disp-recommended_credit_limit
+*Start of changes from Pavithra on 02/04/2024
+                                          lv_last_review_date
+*                                          ls_disp-last_review_date.
+*End of changes from Pavithra on 02/04/2024
+                                          ls_disp-credit_info_num
+                                          ls_disp-payment_index
+                                          ls_disp-rating
+                                          ls_disp-last_ext_rev_date
+                                          ls_disp-rec_crd_lmt_curr.
+
+      IF ls_disp-customer_number IS INITIAL.
+*        READ TABLE lt_knvv INTO ls_knvv WITH KEY zzhrc_prospect_id  = ls_disp-credit_account_number.
+        READ TABLE lt_knvv INTO ls_knvv WITH KEY zzhrc_prospect_id  = ls_disp-hrc_prospect_id.
+*         ls_disp-credit_account_number = ls_knvv-kunnr.
+        ls_disp-customer_number = ls_knvv-kunnr.
+*        credit_account_number
+      ENDIF.
+      IF lv_last_review_date IS NOT INITIAL.
+
+        CONCATENATE lv_last_review_date+0(4) lv_last_review_date+4(2)
+                    lv_last_review_date+6(2) INTO ls_disp-last_review_date.
+      ENDIF.
+      IF lv_next_review_date IS NOT INITIAL.
+        CONCATENATE lv_next_review_date+0(4) lv_next_review_date+4(2)
+                    lv_next_review_date+6(2) INTO ls_disp-next_review_date.
+      ENDIF.
+
+      APPEND ls_disp TO lt_disp.
+      CLEAR: ls_disp, ls_input.
+    ENDLOOP.
+    SORT pt_disp BY customer_number credit_control_area.
+    " added by Mohit on 3 oct 24
+    DELETE pt_disp WHERE customer_number IS INITIAL AND company_code IS INITIAL.
+***Begin of changes from Pavithra on 27-03-2024
+    PERFORM valid_cred_data CHANGING lt_disp
+                                     lt_disp_succ
+                                     lt_disp_err.
+    " added by Mohit on 8 Oct 24
+    DELETE lt_disp_err WHERE customer_number IS INITIAL AND company_code IS INITIAL.
+    IF lt_disp_err IS NOT INITIAL.
+**$- Move error files to error Directory
+      CLEAR: lv_epath, lv_bpath.
+      lv_epath = p_epath.
+      PERFORM move_files USING lt_disp_err
+                               lv_bpath
+                               lv_epath
+                               w_files-name.
+    ENDIF.
+
+    IF lt_disp_succ IS NOT INITIAL.
+*$- Process Records
+      PERFORM process_records USING  lt_disp_succ
+                            CHANGING pv_abort
+                                     pv_emsg.
+*$- Move error files to error Directory
+      CLEAR: lv_epath, lv_bpath.
+      lv_bpath = p_bpath.
+      PERFORM move_files USING lt_disp_succ
+                               lv_bpath
+                               lv_epath
+                               w_files-name.
+    ENDIF.
+
+
+*    PERFORM valid_cred_data CHANGING lt_disp
+*                                     pv_abort
+*                                     pv_emsg.
+
+*    IF pv_abort IS NOT INITIAL .
+***$- Move error files to error Directory
+*      CLEAR: lv_epath.
+*      lv_epath = p_epath.
+*      PERFORM move_files USING t_input
+*                               lv_bpath
+*                               lv_epath
+*                               w_files-name.
+*    ELSE.
+**      APPEND LINES OF lt_disp TO pt_disp.
+**$- Process Records
+*      PERFORM process_records USING  lt_disp
+*                            CHANGING pv_abort
+*                                     pv_emsg.
+*
+***$- Move Processed files to Back up Directory
+*      CLEAR: lv_bpath.
+*      lv_bpath = p_bpath.
+*      PERFORM move_files USING t_input
+*                               lv_bpath
+*                               lv_epath
+*                               w_files-name.
+*    ENDIF.
+***End of changes from Pavithra on 27-03-2024
+
+    CLEAR: lt_disp, lt_disp_succ, lt_disp_err, t_input[], ls_disp.
+  ENDLOOP.
+
+
+*$- Save Application Log
+  PERFORM save_bal_log USING gv_log_handle.
+ENDFORM.                    " load_files
+*&---------------------------------------------------------------------*
+*&      Form  move_files
+*&---------------------------------------------------------------------*
+FORM move_files  USING  lt_disp TYPE tt_disp
+*                      t_inp TYPE tt_input             "comment by Pavithra
+                       p_bpath
+                       p_epath
+                       w_files_name.
+
+  DATA lv_fpath  TYPE string.
+  DATA lv_ifpath TYPE string.
+  DATA lv_slash  TYPE char1.
+  DATA lw_rslt   TYPE match_result_tab.
+***Start of changes by Pavithra on 27/03/2024
+*  DATA lw_inp    TYPE /hex/input.
+  DATA lw_disp TYPE zgrtr_s_credit_data.
+  DATA: lv_seperator TYPE c,
+        lw_outfile   TYPE /hex/extract_file.
+***End of changes by Pavithra on 27/03/2024
+  DATA lv_tlen   TYPE i.
+  DATA lv_slen   TYPE i.
+  DATA lv_flen   TYPE i.
+  DATA lv_lines  TYPE i.
+  DATA lv_dname  TYPE /hex/dir_name.
+  DATA lv_fname  TYPE string.
+  DATA lv_ext    TYPE string.
+
+  IF p_dlimt IS INITIAL.
+    lv_seperator = '|'.
+  ELSE.
+    lv_seperator = p_dlimt.
+  ENDIF.
+  IF NOT p_epath IS INITIAL.
+    lv_dname = p_epath.
+  ELSEIF p_bpath IS NOT INITIAL.
+    lv_dname = p_bpath.
+  ENDIF.
+
+*$- Get Directory Slash ( '/' or '\' )
+  CLEAR lv_slash.
+  FIND FIRST OCCURRENCE OF '\' IN lv_dname RESULTS lw_rslt.
+  IF NOT lw_rslt IS INITIAL.
+    lv_slash = '\'.
+  ELSE.
+    lv_slash = '/'.
+  ENDIF.
+
+*$- Update File Name
+  CLEAR lv_fname.
+  CLEAR lv_ext.
+  SPLIT w_files_name AT '.' INTO lv_fname lv_ext.
+  CONCATENATE lv_fname '_' sy-datum '_' sy-uzeit INTO lv_fname.
+  CONCATENATE lv_fname '.' lv_ext INTO lv_fname.
+
+*$- Form File Name
+  lv_tlen = strlen( lv_dname ).
+  lv_slen = lv_tlen - 1.
+*  IF lv_dname+lv_slen(1) EQ lv_slash. " chg by mohit on 26 09 24
+*    CONCATENATE lv_dname lv_fname INTO lv_fpath.
+*  ELSE.
+*    CONCATENATE lv_dname lv_slash
+*    lv_fname INTO lv_fpath.
+*  ENDIF.
+  IF p_epath IS NOT INITIAL.
+    CONCATENATE p_epath '/' lv_fname INTO lv_fpath. " error path
+  ELSE.
+    CONCATENATE p_bpath '/' lv_fname INTO lv_fpath. " backup path //added on 8 oct by Mohit
+  ENDIF.
+  OPEN DATASET lv_fpath FOR OUTPUT IN TEXT MODE ENCODING DEFAULT MESSAGE gv_msg IGNORING CONVERSION ERRORS.
+*$- Data is downloaded to the application server file path
+  IF sy-subrc = 0.
+***Start of changes by Pavithra on 27/03/2024
+*    LOOP AT t_inp INTO lw_inp.
+*      TRANSFER lw_inp-contents TO lv_fpath.
+*    ENDLOOP.
+*Prepare header data for structure SCMG_T_CASE_ATTR
+    CLEAR:lw_outfile.
+    PERFORM prepare_file_hdr USING 'ZGRTR_S_CREDIT_DATA'
+                             CHANGING lw_outfile.
+    TRANSFER lw_outfile-content TO lv_fpath.
+    LOOP AT lt_disp INTO lw_disp.
+      CONCATENATE lw_disp-customer_number
+                  lw_disp-hrc_prospect_id " added by Mohit on 9 oct 24
+                  lw_disp-credit_account_number
+                  lw_disp-company_code
+                  lw_disp-credit_limit
+                  lw_disp-next_review_date
+                  lw_disp-notes
+                  lw_disp-risk_category
+                  lw_disp-customer_group
+                  lw_disp-credit_rep_group
+                  lw_disp-account_block
+                  lw_disp-credit_control_area
+                  lw_disp-recommended_credit_limit
+                  lw_disp-last_review_date
+                  lw_disp-credit_info_num
+                  lw_disp-payment_index
+                  lw_disp-rating
+                  lw_disp-last_ext_rev_date
+                  lw_disp-rec_crd_lmt_curr
+                  INTO lw_outfile-content SEPARATED BY lv_seperator .
+      TRANSFER lw_outfile-content TO lv_fpath.
+    ENDLOOP.
+***End of changes by Pavithra on 27/03/2024
+*$- Close the Application server file (Mandatory).
+    CLOSE DATASET lv_fpath.
+
+*      Populate Log for the Successful Processed
+***Start of changes by Pavithra on 27/03/2024
+*    DESCRIBE TABLE t_inp LINES lv_lines.
+    DESCRIBE TABLE lt_disp LINES lv_lines.
+*    DATA(lv_tlines) = lv_lines - 1.
+*    CLEAR lv_lines.
+*    lv_lines = lv_tlines.
+***End of changes by Pavithra on 27/03/2024
+    APPEND INITIAL LINE TO gt_log ASSIGNING FIELD-SYMBOL(<fs_log>).
+    <fs_log>-file_name  = lv_fname.
+    <fs_log>-file_count = lv_lines.
+    IF p_epath IS NOT INITIAL.
+      <fs_log>-file_type = 'E'.
+    ELSEIF p_bpath IS NOT INITIAL.
+      <fs_log>-file_type = 'S'.
+    ENDIF.
+    SHIFT <fs_log>-file_count LEFT DELETING LEADING '0'.
+    CONDENSE <fs_log>-file_count NO-GAPS .
+
+  ELSE.
+    v_abort = 'X'.
+    IF NOT p_epath IS INITIAL.
+      v_emsg = 'Incorrect Error file Path !!!.'(019).
+    ELSE.
+      v_emsg = 'Incorrect Success file Path !!!.'(020).
+    ENDIF.
+    RETURN.
+  ENDIF.
+
+ENDFORM.                    " move_files
+*&---------------------------------------------------------------------*
+*&      Form  PROCESS_RECORDS
+*&---------------------------------------------------------------------*
+FORM process_records USING     pt_disp TYPE tt_disp
+                     CHANGING  v_abort
+                               v_emsg.
+
+  TYPES : BEGIN OF ty_currency,
+            kkber    TYPE kkber,
+            currency TYPE waers,
+          END OF ty_currency,
+
+          BEGIN OF ty_cust_bp,
+            customer TYPE kunnr,
+            partner  TYPE bu_partner,
+          END OF ty_cust_bp,
+
+          BEGIN OF ty_sgm,
+            partner      TYPE bu_partner,
+            credit_sgmnt TYPE ukm_credit_sgmnt,
+          END OF ty_sgm,
+
+          BEGIN OF ty_ukmcred_sgm0c,
+            credit_sgmnt TYPE ukm_credit_sgmnt,
+            currency     TYPE ukm_sgm_currency,
+          END OF ty_ukmcred_sgm0c,
+
+          BEGIN OF ty_knkk_curr,
+            kkber TYPE knkk-kkber,
+            cashc TYPE knkk-cashc,
+          END OF ty_knkk_curr.
+
+  DATA lt_knkk                    TYPE STANDARD TABLE OF knkk.
+  DATA lt_temp                    TYPE STANDARD TABLE OF knkk.
+  DATA ls_knkk                    TYPE knkk.
+  DATA lt_currency                TYPE TABLE OF ty_currency.
+  DATA ls_currency                TYPE ty_currency.
+  DATA upd_knkk                   TYPE cdpos-chngind.
+  DATA ls_knkk_old                TYPE knkk.
+  DATA yknka                      TYPE knka.
+  DATA ls_disp                    TYPE ty_disp.
+  DATA lv_tcode	                  TYPE cdhdr-tcode.
+  DATA upd_knka                   TYPE cdpos-chngind.
+  DATA ls_knka                    TYPE knka.
+  DATA lv_planned_change_number   TYPE cdhdr-planchngnr.
+  DATA lv_object_change_indicator TYPE cdhdr-change_ind.
+  DATA lv_planned_or_real_changes TYPE cdhdr-change_ind.
+  DATA lv_no_change_pointers      TYPE cdhdr-change_ind.
+  DATA lo_facade                  TYPE REF TO cl_ukm_facade.
+  DATA lo_bupa_factory            TYPE REF TO cl_ukm_bupa_factory.
+  DATA lo_bupa                    TYPE REF TO cl_ukm_business_partner.
+  DATA: lo_account        TYPE REF TO cl_ukm_account,
+        lr_seg            TYPE RANGE OF ukm_credit_sgmnt,
+        ls_seg            LIKE LINE OF lr_seg,
+        ls_bp_cms_sgm     TYPE ukm_s_bp_cms_sgm,
+        ls_bp_cms_sgm_old TYPE vukmbp_cms_sgm_m,
+        ls_bp_cms_sgm_new TYPE vukmbp_cms_sgm_m,
+        ls_bp_cms         TYPE ukm_s_bp_cms,
+        ls_bp_cms_new     TYPE ukmbp_cms,
+        ls_bp_cms_old     TYPE ukmbp_cms,
+        ls_cust_bp        TYPE ty_cust_bp,
+        lt_sgm            TYPE STANDARD TABLE OF ty_sgm,
+        lt_cust_bp        TYPE STANDARD TABLE OF ty_cust_bp,
+        lt_disp           TYPE STANDARD TABLE OF ty_disp,
+        lv_obj_id         TYPE  cdhdr-objectid,
+        lt_ukmcred_sgm0c  TYPE STANDARD TABLE OF ty_ukmcred_sgm0c,
+        ls_ukmcred_sgm0c  TYPE ty_ukmcred_sgm0c,
+        lt_disp_temp      TYPE tt_disp,
+        lv_amount_cl      TYPE bapicurr-bapicurr,
+        lv_amt_int        TYPE bapicurr-bapicurr, "wmto_s-amount,
+        ls_return         TYPE bapireturn,
+        lt_knkk_curr      TYPE STANDARD TABLE OF ty_knkk_curr,
+        lv_msgno          TYPE bal_s_msg-msgno,
+        lv_msgv1          TYPE symsgv,
+        lv_msgv2          TYPE symsgv,
+        lv_msgv3          TYPE symsgv,
+        lv_msgv4          TYPE symsgv..
+
+  FIELD-SYMBOLS : <fs_disp>      TYPE  ty_disp,
+                  <fs_knkk_curr> TYPE ty_knkk_curr.
+
+  CHECK NOT pt_disp IS INITIAL.
+
+  LOOP AT pt_disp ASSIGNING <fs_disp>.
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = <fs_disp>-customer_number
+      IMPORTING
+        output = <fs_disp>-customer_number.
+  ENDLOOP.
+
+  " Update SD credit details
+  IF pt_disp IS NOT INITIAL.
+    SELECT *
+           FROM knkk
+           INTO TABLE lt_knkk
+           FOR ALL ENTRIES IN pt_disp
+           WHERE kunnr = pt_disp-customer_number
+           AND   kkber = pt_disp-credit_control_area.
+  ENDIF.
+  IF sy-subrc = 0.
+
+    SORT lt_knkk BY kunnr kkber.
+    lt_temp[] = lt_knkk[].
+    SORT lt_temp BY kkber.
+    DELETE ADJACENT DUPLICATES FROM lt_temp COMPARING kkber.
+
+    SELECT kkber waers
+           FROM   t014
+           INTO   TABLE lt_currency
+           FOR ALL ENTRIES IN lt_temp
+           WHERE  kkber = lt_temp-kkber.
+    IF sy-subrc = 0.
+      SORT lt_currency BY kkber.
+    ENDIF.
+
+  ENDIF.
+
+  LOOP AT pt_disp INTO ls_disp.
+    CLEAR w_return.
+    READ TABLE lt_knkk INTO ls_knkk WITH KEY kunnr = ls_disp-customer_number
+                                             kkber = ls_disp-credit_control_area BINARY SEARCH.
+    IF sy-subrc IS INITIAL.
+      ls_knkk_old       = ls_knkk.
+    ENDIF.
+
+    CLEAR ls_currency.
+    READ TABLE lt_currency INTO ls_currency WITH KEY kkber = ls_disp-credit_control_area BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      CLEAR: lv_amount_cl,lv_amt_int.
+      MOVE ls_disp-credit_limit TO lv_amount_cl.
+
+      CALL FUNCTION 'BAPI_CURRENCY_CONV_TO_INTERNAL'
+        EXPORTING
+          currency             = ls_currency-currency
+          amount_external      = lv_amount_cl
+          max_number_of_digits = 23
+        IMPORTING
+          amount_internal      = lv_amt_int
+          return               = ls_return.
+      MOVE lv_amt_int TO ls_disp-credit_limit.
+
+
+      CLEAR: lv_amount_cl,lv_amt_int.
+      MOVE ls_disp-recommended_credit_limit TO lv_amount_cl.
+
+      CALL FUNCTION 'BAPI_CURRENCY_CONV_TO_INTERNAL'
+        EXPORTING
+          currency             = ls_currency-currency
+          amount_external      = lv_amount_cl
+          max_number_of_digits = 23
+        IMPORTING
+          amount_internal      = lv_amt_int
+          return               = ls_return.
+      MOVE lv_amt_int TO ls_disp-recommended_credit_limit.
+    ENDIF.
+
+    ls_knkk-klimk     = ls_disp-credit_limit.
+
+    IF ls_disp-credit_account_number IS NOT INITIAL.
+      ls_knkk-knkli     = ls_disp-credit_account_number.
+    ENDIF.
+
+    ls_knkk-dbekr     = ls_disp-recommended_credit_limit.
+    ls_knkk-nxtrv     = ls_disp-next_review_date.
+    ls_knkk-kdgrp     = ls_disp-customer_group.
+    ls_knkk-sbgrp     = ls_disp-credit_rep_group.
+    ls_knkk-crblb     = ls_disp-account_block.
+    ls_knkk-ctlpc     = ls_disp-risk_category.
+    ls_knkk-dtrev     = ls_disp-last_review_date.
+    ls_knkk-kraus     = ls_disp-credit_info_num.
+    ls_knkk-dbpay     = ls_disp-payment_index.
+    ls_knkk-dbrtg     = ls_disp-rating.
+    ls_knkk-revdb     = ls_disp-last_ext_rev_date.
+    ls_knkk-dbwae     = ls_disp-rec_crd_lmt_curr.
+    upd_knkk          = 'U'.
+
+    CALL FUNCTION 'CREDITLIMIT_CHANGE'
+      EXPORTING
+        i_knka   = ls_knka
+        i_knkk   = ls_knkk
+        upd_knka = upd_knka
+        upd_knkk = upd_knkk
+        yknka    = yknka
+        yknkk    = ls_knkk_old.
+    IF sy-subrc <> 0.
+      lv_msgv1 = |{ TEXT-025  }| & |{ <fs_disp>-customer_number }|.
+      lv_msgv2 = |{ TEXT-026  }| & |{ <fs_disp>-credit_control_area }|.
+      lv_msgno = '184'.
+      PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                   gc_problem_class_important    " Class Problem Level
+                                   gc_error                      " Error Message
+                                   gc_message_id                 " Message Class
+                                   lv_msgno                      " Message Number
+                                   lv_msgv1                      " Message Dynamic Content(&) 1
+                                   lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                   lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                   lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                   gc_detail_level1.             " Application Detail Level
+    ELSE.
+      READ TABLE lt_currency INTO ls_currency WITH KEY kkber = ls_disp-credit_control_area BINARY SEARCH.
+      lv_obj_id = ls_knkk-kunnr.
+*      lv_tcode = '/HEX/UPD_CREDIT_DATA'.
+      CALL FUNCTION 'KLIM_WRITE_DOCUMENT'
+        EXPORTING
+          objectid                = lv_obj_id
+          tcode                   = lv_tcode
+          utime                   = sy-uzeit
+          udate                   = sy-datum
+          username                = sy-uname
+          planned_change_number   = lv_planned_change_number
+          object_change_indicator = lv_object_change_indicator
+          planned_or_real_changes = lv_planned_or_real_changes
+          no_change_pointers      = lv_no_change_pointers
+          n_knka                  = ls_knka
+          o_yknka                 = ls_knka
+          upd_knka                = upd_knka
+          n_knkk                  = ls_knkk
+          o_yknkk                 = ls_knkk_old
+          n_xf02c                 = ls_currency-currency
+          o_xf02c                 = ls_currency-currency
+          upd_knkk                = upd_knkk.
+
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          wait = abap_true.
+
+
+      lv_msgv1 = |{ TEXT-025  }| & |{ <fs_disp>-customer_number }|.
+      lv_msgv2 = |{ TEXT-026  }| & |{ <fs_disp>-credit_control_area }|.
+      lv_msgno = '184'.
+      PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                   gc_problem_class_important    " Class Problem Level
+                                   gc_error                      " Error Message
+                                   gc_message_id                 " Message Class
+                                   lv_msgno                      " Message Number
+                                   lv_msgv1                      " Message Dynamic Content(&) 1
+                                   lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                   lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                   lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                   gc_detail_level1.             " Application Detail Level
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                    " PROCESS_RECORDS
+*&---------------------------------------------------------------------*
+*&      Form  F_CREATE_BAL_LOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->GV_LOG_HANDLE  text
+*----------------------------------------------------------------------*
+FORM create_bal_log  USING gv_log_handle TYPE balloghndl.
+* Local data declarations.
+* Structures.
+  DATA:
+    lst_log         TYPE bal_s_log.
+
+* Defining some header data of the application log.
+  lst_log-aldate    = sy-datum.
+  lst_log-altime    = sy-uzeit.
+  lst_log-aluser    = sy-uname.
+  lst_log-alprog    = sy-repid.
+  lst_log-object    = gc_object.
+  lst_log-subobject = gc_subobject.
+
+* Creationg the application log.
+  CALL FUNCTION 'BAL_LOG_CREATE'
+    EXPORTING
+      i_s_log      = lst_log
+    IMPORTING
+      e_log_handle = gv_log_handle
+    EXCEPTIONS
+      OTHERS       = 1.
+* Not necessary to cater for this exception.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* Sub routine to add a message to the processing log.                  *
+*----------------------------------------------------------------------*
+FORM add_msg_to_log USING pi_log_handle TYPE balloghndl
+                            pi_probclass TYPE bal_s_msg-probclass
+                            pi_msgty TYPE bal_s_msg-msgty
+                            pi_msgid TYPE bal_s_msg-msgid
+                            pi_msgno TYPE bal_s_msg-msgno
+                            pi_msgv1 TYPE bal_s_msg-msgv1
+                            pi_msgv2 TYPE bal_s_msg-msgv2
+                            pi_msgv3 TYPE bal_s_msg-msgv3
+                            pi_msgv4 TYPE bal_s_msg-msgv4
+                            pi_detlevel TYPE bal_s_msg-detlevel.
+*----------------------------------------------------------------------*
+* Structures:
+  DATA:
+    lst_ballog_msg         TYPE bal_s_msg.
+
+* Defining data of message for the application log.
+  lst_ballog_msg-probclass = pi_probclass.
+  lst_ballog_msg-msgty     = pi_msgty.
+  lst_ballog_msg-msgid     = pi_msgid.
+  lst_ballog_msg-msgno     = pi_msgno.
+  lst_ballog_msg-msgv1     = pi_msgv1.
+  lst_ballog_msg-msgv2     = pi_msgv2.
+  lst_ballog_msg-msgv3     = pi_msgv3.
+  lst_ballog_msg-msgv4     = pi_msgv4.
+  lst_ballog_msg-detlevel  = pi_detlevel.
+
+* Adding this message to log file.
+  CALL FUNCTION 'BAL_LOG_MSG_ADD'
+    EXPORTING
+      i_log_handle  = pi_log_handle
+      i_s_msg       = lst_ballog_msg
+    EXCEPTIONS
+      log_not_found = 0
+      OTHERS        = 1.
+* Not necessary to cater for these exceptions.
+
+ENDFORM.
+*----------------------------------------------------------------------*
+* Sub routine to save the application log to database.                 *
+*----------------------------------------------------------------------*
+FORM save_bal_log USING pi_log_handle TYPE balloghndl.
+*----------------------------------------------------------------------*
+* Internal Tables:
+  DATA:
+    lt_loghandle TYPE bal_t_logh.
+
+* Append the log handler to an internal table for saving purposes.
+  APPEND pi_log_handle TO lt_loghandle.
+
+* Saving the application log.
+  CALL FUNCTION 'BAL_DB_SAVE'
+    EXPORTING
+      i_t_log_handle   = lt_loghandle
+    EXCEPTIONS
+      log_not_found    = 1
+      save_not_allowed = 2
+      numbering_error  = 3
+      error_message    = 4
+      OTHERS           = 5.
+* Not necessary to cater for these exceptions.
+ENDFORM.                    "F_SAVE_BAL_LOG
+*&---------------------------------------------------------------------*
+*&      Form  VALID_CRED_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_PT_DISP  text
+*      <--P_PV_ABORT  text
+*      <--P_PV_EMSG  text
+*----------------------------------------------------------------------*
+FORM valid_cred_data  CHANGING pt_disp        TYPE tt_disp
+                               pt_disp_succ   TYPE tt_disp
+                               pt_disp_err    TYPE tt_disp.
+*                               pt_disp   TYPE tt_disp
+*                               pv_abort  TYPE char1
+*                               pv_emsg   TYPE string.
+
+
+  DATA: lt_disp   TYPE tt_disp,
+        lt_t001cm TYPE TABLE OF t001cm,
+        lt_t691t  TYPE TABLE OF t691t,
+        lt_t024b  TYPE TABLE OF t024b,
+        lv_msgid  TYPE bal_s_msg-msgid,
+        lv_msgno  TYPE bal_s_msg-msgno,
+        lv_msgv1  TYPE symsgv,
+        lv_msgv2  TYPE symsgv,
+        lv_msgv3  TYPE symsgv,
+        lv_msgv4  TYPE symsgv.
+
+  DATA: ls_actual TYPE string.  "MOKHURSH
+
+  DATA: lv_error TYPE char1. "chnages from Pavithra
+
+  lt_disp[] = pt_disp[].
+  SORT lt_disp BY company_code credit_control_area.
+  DELETE ADJACENT DUPLICATES FROM lt_disp COMPARING company_code credit_control_area.
+  DELETE lt_disp WHERE customer_number IS INITIAL AND company_code IS INITIAL
+         AND credit_control_area IS INITIAL. " added by Mohit on 3 oct 24
+
+  IF lt_disp[] IS NOT INITIAL.
+    SELECT * FROM t001cm
+             INTO TABLE lt_t001cm
+             FOR ALL ENTRIES IN lt_disp
+             WHERE bukrs = lt_disp-company_code
+             AND   kkber = lt_disp-credit_control_area.
+  ENDIF.
+
+  REFRESH lt_disp[].
+  lt_disp[] = pt_disp[].
+  SORT lt_disp BY credit_control_area risk_category.
+  DELETE ADJACENT DUPLICATES FROM lt_disp COMPARING credit_control_area risk_category.
+
+  IF lt_disp[] IS NOT INITIAL .
+    SELECT * FROM t691t
+             INTO TABLE lt_t691t
+             FOR ALL ENTRIES IN lt_disp
+             WHERE spras = 'E'
+             AND   ctlpc = lt_disp-risk_category
+             AND   kkber = lt_disp-credit_control_area.
+  ENDIF.
+
+  REFRESH lt_disp[].
+  lt_disp[] = pt_disp[].
+  SORT lt_disp BY credit_rep_group credit_control_area.
+  DELETE ADJACENT DUPLICATES FROM lt_disp COMPARING credit_rep_group credit_control_area.
+
+  IF lt_disp[] IS NOT INITIAL .
+    SELECT * FROM t024b
+             INTO TABLE lt_t024b
+             FOR ALL ENTRIES IN lt_disp
+             WHERE sbgrp = lt_disp-credit_rep_group
+             AND   kkber = lt_disp-credit_control_area
+             AND   stext <> 'Delete'."= 'Delete'."Changed by pavankumar on 04.03.2024
+  ENDIF.
+
+  REFRESH lt_disp[].
+  lt_disp[] = pt_disp[].
+
+  LOOP AT lt_disp ASSIGNING FIELD-SYMBOL(<fs_disp>).
+***start of changes from Pavithra on 28/03/2024
+    CLEAR:lv_error.
+*    IF <fs_disp>-last_review_date LE <fs_disp>-next_review_date.
+*    IF <fs_disp>-last_review_date GT <fs_disp>-next_review_date.
+***End of changes from Pavithra on 28/03/2024
+*      Log Error and continue.
+
+*      CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+*      lv_msgv1 = <fs_disp>-last_review_date.
+*      lv_msgv2 = <fs_disp>-next_review_date.
+*      lv_msgv3 = |{ TEXT-025  }| & |{ <fs_disp>-customer_number }| &
+*                 |{ ' ' }| & |{ TEXT-026  }| & |{ <fs_disp>-credit_control_area }|.
+*      lv_msgno = '183'.
+*      PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+*                                   gc_problem_class_important    " Class Problem Level
+*                                   gc_error                      " Error Message
+*                                   gc_message_id                 " Message Class
+*                                   lv_msgno                      " Message Number
+*                                   lv_msgv1                      " Message Dynamic Content(&) 1
+*                                   lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+*                                   lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+*                                   lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+*                                   gc_detail_level1.             " Application Detail Level
+***Start of changes from Pavithra on 27/03/2024
+*      pv_abort = abap_true.
+*      EXIT.
+*      lv_error = 'X'. "ms
+***End of changes from Pavithra on 27/03/2024
+*    ENDIF.
+*******Begin of change MOKHURSH
+    CLEAR: ls_actual.
+    IF <fs_disp>-credit_limit IS NOT INITIAL.
+
+      ls_actual = <fs_disp>-credit_limit.
+
+      IF ls_actual CO '0123456789,.'.
+      ELSE.
+
+        CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+        lv_msgv1 = <fs_disp>-credit_limit.
+        lv_msgno = '171'.
+        PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                     gc_problem_class_important    " Class Problem Level
+                                     gc_error                      " Error Message
+                                     gc_message_id                 " Message Class
+                                     lv_msgno                      " Message Number
+                                     lv_msgv1                      " Message Dynamic Content(&) 1
+                                     lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                     lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                     lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                     gc_detail_level1.             " Application Detail Level
+        lv_error = 'X'.
+
+      ENDIF.
+    ENDIF.
+
+
+    CLEAR: ls_actual.
+    IF  <fs_disp>-recommended_credit_limit IS NOT INITIAL.
+
+      ls_actual = <fs_disp>-recommended_credit_limit.
+
+
+      IF ls_actual CO '0123456789,.'.
+      ELSE.
+
+        CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+        lv_msgv1 = <fs_disp>-recommended_credit_limit.
+        lv_msgno = '172'.
+        PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                     gc_problem_class_important    " Class Problem Level
+                                     gc_error                      " Error Message
+                                     gc_message_id                 " Message Class
+                                     lv_msgno                      " Message Number
+                                     lv_msgv1                      " Message Dynamic Content(&) 1
+                                     lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                     lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                     lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                     gc_detail_level1.             " Application Detail Level
+        lv_error = 'X'.
+
+      ENDIF.
+    ENDIF.
+*******Begin of change MOKHURSH
+    IF lv_error NE 'X'.  "MOKHURSH
+***Start of changes from Pavithra on 27/03/2024
+      IF <fs_disp>-credit_limit LT 0 OR <fs_disp>-recommended_credit_limit LT 0.
+
+        CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+        lv_msgv1 = <fs_disp>-last_review_date.
+        lv_msgv2 = <fs_disp>-next_review_date.
+        lv_msgv3 = |{ TEXT-025  }| & |{ <fs_disp>-customer_number }| &
+                   |{ ' ' }| & |{ TEXT-026  }| & |{ <fs_disp>-credit_control_area }|.
+        lv_msgno = '188'.
+        PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                     gc_problem_class_important    " Class Problem Level
+                                     gc_error                      " Error Message
+                                     gc_message_id                 " Message Class
+                                     lv_msgno                      " Message Number
+                                     lv_msgv1                      " Message Dynamic Content(&) 1
+                                     lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                     lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                     lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                     gc_detail_level1.             " Application Detail Level
+        lv_error = 'X'.
+      ENDIF.
+    ENDIF.
+***End of changes from Pavithra on 27/03/2024
+
+*    Check CREDIT_CONTROL_AREA is assigned to the COMPANY_CODE in T001CM
+    READ TABLE lt_t001cm TRANSPORTING NO FIELDS WITH KEY bukrs = <fs_disp>-company_code
+                                                         kkber = <fs_disp>-credit_control_area.
+    IF sy-subrc IS NOT INITIAL.
+*      Log Error and continue.
+
+      CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+      lv_msgv1 = <fs_disp>-credit_control_area.
+      lv_msgv2 = <fs_disp>-company_code.
+      lv_msgv3 = |{ TEXT-025  }| & |{ <fs_disp>-customer_number }|.
+      lv_msgno = '180'.
+      PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                   gc_problem_class_important    " Class Problem Level
+                                   gc_error                      " Error Message
+                                   gc_message_id                 " Message Class
+                                   lv_msgno                      " Message Number
+                                   lv_msgv1                      " Message Dynamic Content(&) 1
+                                   lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                   lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                   lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                   gc_detail_level1.             " Application Detail Level
+***Start of changes from Pavithra on 27/03/2024
+*      pv_abort = abap_true.
+      lv_error = 'X'.
+***End of changes from Pavithra on 27/03/2024
+    ENDIF.
+
+*    Check RISK_CATEGORY is available for the CREDIT_CONTROL_AREA in T691A
+    READ TABLE lt_t691t TRANSPORTING NO FIELDS WITH KEY ctlpc = <fs_disp>-risk_category
+                                                         kkber = <fs_disp>-credit_control_area.
+    IF sy-subrc IS NOT INITIAL.
+*      Log Error and continue.
+
+      CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+      lv_msgv1 = <fs_disp>-risk_category.
+      lv_msgv2 = <fs_disp>-credit_control_area.
+      lv_msgv3 = |{ TEXT-025  }| & |{ <fs_disp>-customer_number }|.
+      lv_msgno = '181'.
+      PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                   gc_problem_class_important    " Class Problem Level
+                                   gc_error                      " Error Message
+                                   gc_message_id                 " Message Class
+                                   lv_msgno                      " Message Number
+                                   lv_msgv1                      " Message Dynamic Content(&) 1
+                                   lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                   lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                   lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                   gc_detail_level1.             " Application Detail Level
+***Start of changes from Pavithra on 27/03/2024
+*      pv_abort = abap_true.
+*      EXIT.
+      lv_error = 'X'.
+***End of changes from Pavithra on 27/03/2024
+    ENDIF.
+
+    IF <fs_disp>-credit_rep_group IS NOT INITIAL.
+*    Check CREDIT_REP_GROUP is available for the CREDIT_CONTROL_AREA in T024B AND T024B_TEXT in not ‘Delete’
+      READ TABLE lt_t024b TRANSPORTING NO FIELDS WITH KEY  sbgrp = <fs_disp>-credit_rep_group
+                                                           kkber = <fs_disp>-credit_control_area.
+      IF sy-subrc IS NOT INITIAL.
+*      Log Error and continue.
+        CLEAR: lv_msgno,lv_msgv1,lv_msgv2,lv_msgv3,lv_msgv4.
+        lv_msgv1 = <fs_disp>-credit_rep_group.
+        lv_msgv2 = <fs_disp>-credit_control_area.
+        lv_msgv3 = |{ TEXT-025  }| & |{ <fs_disp>-customer_number }|.
+        lv_msgno = '182'.
+        PERFORM add_msg_to_log USING gv_log_handle                 " Log Handler
+                                     gc_problem_class_important    " Class Problem Level
+                                     gc_error                      " Error Message
+                                     gc_message_id                 " Message Class
+                                     lv_msgno                      " Message Number
+                                     lv_msgv1                      " Message Dynamic Content(&) 1
+                                     lv_msgv2                      " Message Dynamic Content(&) 2 (Empty)
+                                     lv_msgv3                      " Message Dynamic Content(&) 3 (Empty)
+                                     lv_msgv4                      " Message Dynamic Content(&) 4 (Empty)
+                                     gc_detail_level1.             " Application Detail Level
+***Start of changes from Pavithra on 27/03/2024
+*      pv_abort = abap_true.
+*      EXIT.
+        lv_error = 'X'.
+      ENDIF.
+***End of changes from Pavithra on 27/03/2024
+    ENDIF.
+    IF lv_error NE 'X'.
+      APPEND <fs_disp> TO pt_disp_succ.
+    ELSE.
+      APPEND <fs_disp> TO pt_disp_err.
+    ENDIF.
+  ENDLOOP.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  WRITE_LOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM write_log .
+  DATA: lt_log        TYPE /hex/tt_audit_log.
+
+*-Audit Log
+  WRITE : /(128) 'HRD Credit Master Data Update' COLOR COL_GROUP CENTERED.
+  ULINE /(128).
+
+*  SKIP 1. " added by pritismank on 17th June
+  WRITE : / 'Transaction code', 19 ':', sy-tcode, 100 'Executed by', 112 ':', sy-uname.
+  WRITE : / 'Program', 19 ':', sy-cprog, 100 'Date', 112 ':', sy-datum.
+*  IF r_fl IS NOT INITIAL.
+  WRITE : / 'Mode of execution',19 ':', 'Full Load', 100 'Time', 112 ':', sy-uzeit.
+
+  ULINE AT /1(128).
+  SKIP 1.
+  WRITE : / 'SUMMARY' COLOR COL_HEADING INTENSIFIED.
+  ULINE AT /1(8).
+
+  SKIP 1.
+  IF p_ipath IS NOT INITIAL.
+    WRITE : / 'Input file location (Application Server)', 50 '-', p_ipath .
+  ENDIF.
+  SKIP 1.
+
+  lt_log[] = gt_log[].
+  DELETE lt_log WHERE file_type NE 'S'.
+  SKIP 1.
+  IF p_bpath IS NOT INITIAL.
+    WRITE : / 'Back up file location (Application Server)', 50 '-', p_bpath .
+  ENDIF.
+  SKIP 1.
+  IF lt_log IS NOT INITIAL.
+    WRITE : / 'Backuped File Name', 65 'Count'.
+    ULINE AT /1(20).
+    ULINE AT 65(6).
+    LOOP AT lt_log ASSIGNING FIELD-SYMBOL(<fs_log>).
+      WRITE : / <fs_log>-file_name, 62 '-', 65 <fs_log>-file_count.
+    ENDLOOP.
+  ENDIF.
+*  WRITE : / gv_file_name, 62 '-', 65 gv_count.
+
+
+  SKIP 1.
+  lt_log[] = gt_log[].
+  DELETE lt_log WHERE file_type NE 'E'.
+  IF p_epath IS NOT INITIAL.
+    WRITE : / 'Error file location (Application Server)', 50 '-', p_epath .
+  ENDIF.
+  SKIP 1.
+
+  IF lt_log IS NOT INITIAL.
+    WRITE : / 'Error File Name', 65 'Count'.
+    ULINE AT /1(20).
+    ULINE AT 65(6).
+    LOOP AT lt_log ASSIGNING <fs_log>.
+      WRITE : / <fs_log>-file_name, 62 '-', 65 <fs_log>-file_count.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  PREPARE_FILE_HDR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_1891   text
+*      <--P_LW_OUTFILE  text
+*----------------------------------------------------------------------*
+FORM prepare_file_hdr  USING  lv_structure TYPE char50
+                       CHANGING lw_file TYPE /hex/extract_file.
+*$ Type pools declarations
+  TYPE-POOLS: abap.
+
+*$ Data declarations
+  DATA: lv_seperator       TYPE c,
+        lt_fields          TYPE abap_compdescr_tab,
+        lw_fields          TYPE abap_compdescr,
+        lo_ref_table_descr TYPE REF TO cl_abap_structdescr.
+
+  IF p_dlimt IS INITIAL.
+    lv_seperator = '|'.
+  ELSE.
+    lv_seperator = p_dlimt.
+  ENDIF.
+
+*$ Return structure of the table.
+  lo_ref_table_descr ?=
+  cl_abap_typedescr=>describe_by_name( lv_structure ).
+  lt_fields[] = lo_ref_table_descr->components[].
+
+*$ Build first line of file
+  CLEAR lw_file.
+  LOOP AT lt_fields INTO lw_fields.
+    IF sy-tabix = 1.
+      lw_file-content = lw_fields-name.
+    ELSE.
+      CONCATENATE lw_file-content
+                  lw_fields-name
+                  INTO lw_file-content
+                  SEPARATED BY lv_seperator.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.

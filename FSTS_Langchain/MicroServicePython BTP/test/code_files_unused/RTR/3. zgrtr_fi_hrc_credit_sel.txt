@@ -1,0 +1,36 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZGRTR_FI_HRC_CREDIT_SEL
+*&---------------------------------------------------------------------*
+
+*$ Selection Screen
+SELECTION-SCREEN:BEGIN OF BLOCK a1 WITH FRAME TITLE s07.
+SELECT-OPTIONS: s_kkber FOR knkk-kkber.
+SELECTION-SCREEN:END OF BLOCK a1.
+
+SELECTION-SCREEN:BEGIN OF BLOCK a2 WITH FRAME TITLE s01.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT 1(30) s02.
+SELECTION-SCREEN POSITION 33.
+PARAMETERS: r_as RADIOBUTTON GROUP hr2 DEFAULT 'X' USER-COMMAND as.
+SELECTION-SCREEN COMMENT 35(20) s03 FOR FIELD r_as.
+SELECTION-SCREEN POSITION 56.
+PARAMETERS: r_ps RADIOBUTTON GROUP hr2.
+SELECTION-SCREEN COMMENT 57(20) s04 FOR FIELD r_ps.
+SELECTION-SCREEN END OF LINE.
+
+PARAMETERS: p_dlimt TYPE char1 DEFAULT '|'.
+SELECTION-SCREEN :END OF BLOCK a2.
+
+SELECTION-SCREEN BEGIN OF BLOCK a3 WITH FRAME TITLE s05.
+PARAMETERS: p_ipath TYPE eseftappl MODIF ID aps
+            DEFAULT '/interface/BizLink/OTCCASHAPP/Inbound/Credit_Master/Inputfile',
+            p_epath TYPE eseftappl MODIF ID aps
+            DEFAULT '/interface/BizLink/OTCCASHAPP/Inbound/Credit_Master/Errorfile',
+            p_bpath TYPE eseftappl MODIF ID aps
+            DEFAULT '/interface/BizLink/OTCCASHAPP/Inbound/Credit_Master/Backupfile'.
+SELECTION-SCREEN END OF BLOCK a3.
+
+SELECTION-SCREEN BEGIN OF BLOCK a4 WITH FRAME TITLE s06.
+PARAMETERS p_ppath         TYPE eseftappl MODIF ID psr.
+*PARAMETERS p_spath         TYPE eseftappl MODIF ID psr.
+SELECTION-SCREEN END OF BLOCK a4.
