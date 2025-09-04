@@ -1,0 +1,13 @@
+---
+applications:
+- name: myapp
+  random-route: true
+  path: ./
+  memory: 128M
+  buildpacks: 
+  - python_buildpack
+  command: python api_server.py
+  services:
+  - fsts_dhruv-db
+  - fsts_dhruv-destination
+  - fsts_dhruv-auth

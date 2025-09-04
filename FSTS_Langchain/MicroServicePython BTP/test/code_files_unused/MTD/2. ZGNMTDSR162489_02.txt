@@ -1,0 +1,255 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZGNMTDSR162489_QCD
+*&---------------------------------------------------------------------*
+
+*type Declarations
+TYPES : BEGIN OF ty_qmat,
+          art   TYPE qpart,
+          matnr TYPE matnr,
+          werks TYPE werks_d,
+          mpdau TYPE qmpdau,
+        END OF ty_qmat,
+
+        BEGIN OF ty_qals,
+          matnr     TYPE matnr,
+          charg     TYPE charg_d,
+          werk      TYPE werks_d,
+          paendterm TYPE qprende,
+        END OF ty_qals.
+
+
+
+DATA : li_qmat   TYPE STANDARD TABLE OF ty_qmat INITIAL SIZE 0,
+       li_cldpgi TYPE STANDARD TABLE OF zgmtd_cld_pgi,
+       li_qals   TYPE STANDARD TABLE OF ty_qals,
+       lw_qals   TYPE ty_qals.
+
+DATA : lwa_cldpgi   TYPE zgmtd_cld_pgi,
+       lw_qmat      TYPE ty_qmat,
+       l_adddys     TYPE converter_max_wait_days,
+       l_time       TYPE converter_max_wait_time,
+       lv_diff      TYPE tvro-fahztd,
+       lv_mpdau     TYPE fahztd,
+       l_msg        TYPE bdc_vtext1,
+       l_rem        TYPE t,
+       l_seconds    TYPE i,
+       w_jobcount   TYPE btcjobcnt,
+       jobname      TYPE btcjob VALUE 'ZUD_UPDATE',
+       lv_time      TYPE sy-uzeit,
+       l_remain_cld TYPE fahztd,
+       wa_autoud    TYPE zgmtd_08il.
+
+
+DATA: lv_timestamp TYPE timestamp,
+      lo_timestamp TYPE timestamp.
+
+*Logic to retrieve delivery, plant and line item
+DATA: l_text(40)       TYPE c,
+      l_text_temp(40)  TYPE c,
+      l_text_mseg(40)  TYPE c,
+      l_text_imseg(40) TYPE c,
+      w_gohead         TYPE gohead,
+      w_goitem         TYPE goitem,
+      w_mseg           TYPE mseg,
+      w_imseg          TYPE imseg.
+
+
+FIELD-SYMBOLS : <ls_gohead> TYPE gohead,
+                <ls_goitem> TYPE goitem,
+                <ls_imseg>  TYPE imseg,
+                <ls_mseg>   TYPE mseg.
+
+l_text       = '(SAPLMIGO)GOHEAD'.
+l_text_temp  = '(SAPLMIGO)GOITEM'.
+l_text_imseg = '(SAPLMBWL)IMSEG'.
+l_text_mseg  = '(SAPMM07M)MSEG'.
+
+DATA: li_callstack TYPE abap_callstack,
+      lw_callstack TYPE abap_callstack_line,
+      lv_flag      TYPE c,
+      lv_parameter TYPE fupararef-parameter.
+
+CALL FUNCTION 'SYSTEM_CALLSTACK'
+  EXPORTING
+    max_level = 0
+  IMPORTING
+    callstack = li_callstack.
+break akgarg.
+LOOP AT li_callstack INTO lw_callstack WHERE mainprogram = 'SAPLMBWL' AND blocktype = 'FUNCTION'.
+
+  SELECT SINGLE parameter FROM fupararef INTO lv_parameter
+                 WHERE funcname  = lw_callstack-blockname
+                   AND r3state   = 'A'      "Active
+                   AND parameter = 'IMSEG'.  "Global parameter / field symbol
+  IF sy-subrc = 0.
+    lv_flag = 'X'.
+  ENDIF.
+ENDLOOP.
+
+IF sy-tcode <> 'MB1B'.
+
+  CHECK lv_flag = 'X'.
+  ASSIGN (l_text_imseg) TO <ls_imseg>.
+  CHECK sy-subrc = 0.
+
+
+  ASSIGN (l_text_mseg) TO <ls_mseg>.
+  CHECK sy-subrc = 0.
+
+  w_mseg   = <ls_mseg>.
+  w_imseg  = <ls_imseg>.
+
+ENDIF.
+IF sy-ucomm NE 'OK_CHECK'.
+
+  SELECT art
+         matnr
+         werks
+         mpdau
+    INTO  TABLE li_qmat[]
+      FROM qmat
+    WHERE ( art = '08' or art = 'Z01' )
+      AND matnr = i_qals-matnr
+      AND werks = i_qals-werk.
+  IF sy-subrc = 0.
+
+    IF ( i_qals-art = '08' or i_qals-art = 'Z01' ) AND  ( i_qals-bwart = '101' OR  i_qals-bwart = '322' OR i_qals-bwart = '349' OR i_qals-bwart = 'Z49' ).
+
+*   Check entry available in PGI table
+      IF i_qals-bwart = '101'.
+        SELECT *
+          FROM zgmtd_cld_pgi
+          INTO TABLE li_cldpgi
+          WHERE matnr = i_qals-matnr
+            AND vbeln = w_imseg-vbeln
+*          AND posnr = w_imseg-posnr                       "DEL by AKGARG 24/1/17
+            AND charg = i_qals-charg.
+      ELSE.
+**        SELECT *
+**         FROM zgmtd_cld_pgi
+**         INTO TABLE li_cldpgi
+**         WHERE matnr = i_qals-matnr
+**           AND charg = i_qals-charg.
+
+****************
+        SELECT matnr charg werk paendterm
+          FROM qals
+          INTO TABLE li_qals
+          WHERE matnr =  i_qals-matnr
+         AND charg = i_qals-charg
+          AND werk = i_qals-werk
+          AND art = '04'.
+
+        IF sy-subrc <> 0.
+
+          SELECT matnr charg werk paendterm
+         FROM qals
+         INTO TABLE li_qals
+         WHERE matnr =  i_qals-matnr
+           AND charg = i_qals-charg
+           AND werk = i_qals-werk
+           AND ( art = '08' or art = 'Z01' ).
+        ENDIF.
+*****************
+        IF li_cldpgi IS NOT INITIAL.
+
+          SORT li_cldpgi BY  cld_end_date DESCENDING cld_end_time DESCENDING.
+
+          READ TABLE li_cldpgi INTO lwa_cldpgi INDEX 1.
+
+
+          CALL FUNCTION 'CONVERSION_EXIT_TSTRN_INPUT'
+            EXPORTING
+              input  = lwa_cldpgi-remain_cld
+            IMPORTING
+              output = l_remain_cld.
+
+          l_remain_cld          = ( l_remain_cld / 10000 ).
+          l_seconds             =   l_remain_cld  * 3600.
+          .
+
+*   Convert Date and Time to Time stamp
+          CALL FUNCTION 'IB_CONVERT_INTO_TIMESTAMP'
+            EXPORTING
+              i_datlo     = i_qals-pastrterm
+              i_timlo     = i_qals-entstezeit
+            IMPORTING
+              e_timestamp = lv_timestamp.
+
+          CALL METHOD cl_abap_tstmp=>add
+            EXPORTING
+              tstmp   = lv_timestamp
+              secs    = l_seconds
+            RECEIVING
+              r_tstmp = lo_timestamp.
+
+*   Convert the result to date and time
+          CALL FUNCTION 'IB_CONVERT_FROM_TIMESTAMP'
+            EXPORTING
+              i_timestamp = lo_timestamp
+            IMPORTING
+              e_datlo     = i_qals-paendterm
+              e_timlo     = i_qals-paendzeit.
+        ENDIF.
+
+      ENDIF.
+
+      IF sy-subrc EQ 0.
+        SORT li_cldpgi BY remain_cld DESCENDING.
+      ENDIF.
+
+      LOOP AT li_cldpgi INTO lwa_cldpgi.                      "INS by AKGARG 27/2/17
+
+        CALL FUNCTION 'CONVERSION_EXIT_TSTRN_INPUT'
+          EXPORTING
+            input  = lwa_cldpgi-remain_cld
+          IMPORTING
+            output = l_remain_cld.
+
+        l_remain_cld          = ( l_remain_cld / 10000 ) .
+        l_seconds             =   l_remain_cld  * 3600.
+        .
+
+*   Convert Date and Time to Time stamp
+        CALL FUNCTION 'IB_CONVERT_INTO_TIMESTAMP'
+          EXPORTING
+            i_datlo     = i_qals-pastrterm
+            i_timlo     = i_qals-entstezeit
+          IMPORTING
+            e_timestamp = lv_timestamp.
+
+        CALL METHOD cl_abap_tstmp=>add
+          EXPORTING
+            tstmp   = lv_timestamp
+            secs    = l_seconds
+          RECEIVING
+            r_tstmp = lo_timestamp.
+
+*   Convert the result to date and time
+        CALL FUNCTION 'IB_CONVERT_FROM_TIMESTAMP'
+          EXPORTING
+            i_timestamp = lo_timestamp
+          IMPORTING
+            e_datlo     = i_qals-paendterm
+            e_timlo     = i_qals-paendzeit.
+      ENDLOOP.                                       "INS by AKGARG 27/2/17
+
+      IF li_qals IS NOT INITIAL.
+
+        SORT li_qals BY  paendterm DESCENDING.
+
+        READ TABLE li_qals INTO lw_qals INDEX 1.
+
+        IF sy-datum > lw_qals-paendterm.
+
+          i_qals-paendterm = sy-datum.
+        ELSE.
+          i_qals-paendterm = lw_qals-paendterm.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDIF.
+
+e_qals = i_qals.
+e_active = 'X'.

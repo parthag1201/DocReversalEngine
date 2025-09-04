@@ -1,0 +1,615 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZGNMTD0475_CONSIGN_PROCESS_F01
+*&---------------------------------------------------------------------*
+************************************************************************
+* McCain
+* Global/Local  : Local
+* List Site(s)  : SAF
+* FS Document ID: MTD_SAF_12_E01
+* TS Document ID: MTD_SAF_12_TS_E01
+* TS Title      : Consignment Process Enhancement
+* CTS No        : ED2K913904
+* Object Description: Program to be attached to output type ZCIT
+*                     (Consignment in Transit) which will be triggered
+*                     on PGI of the delivery.
+************************************************************************
+* Revision Log:
+* Init.  Author/Reviser  Date     Description of Change CTS# of Changes
+* 1   Sidharth Chauhan  29/10/2013 Initial version      ED2K913904
+************************************************************************
+*&---------------------------------------------------------------------*
+*&      Form  SUB_PROCESSING
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM sub_processing .
+
+  CONSTANTS: lc_mvt_301     TYPE bwart   VALUE '301',
+             lc_ind_w       TYPE sobkz   VALUE 'W',
+             lc_dummy_plant TYPE werks_d VALUE '5999'.
+
+* Table types declarations
+  TYPES: BEGIN OF lty_lips,
+          vbeln TYPE vbeln_vl,
+          kunnr TYPE kunnr,
+          posnr TYPE posnr_vl,
+          matnr TYPE matnr,
+          werks TYPE werks_d,
+          lgort TYPE lgort_d,
+          charg TYPE charg_d,
+          lfimg TYPE lfimg,
+          meins TYPE meins,
+          vrkme TYPE vrkme,
+         END OF lty_lips.
+
+* Internal table declarations
+  DATA: li_lips  TYPE STANDARD TABLE OF lty_lips,
+        li_imseg TYPE STANDARD TABLE OF imseg,
+        li_emseg TYPE STANDARD TABLE OF emseg.
+
+* Workarea Declarations
+  DATA: lw_lips  TYPE lty_lips,
+        lw_imseg TYPE imseg,
+        lw_imkpf TYPE imkpf,
+        lw_emkpf TYPE emkpf,
+        lw_emseg TYPE emseg.
+
+* Variable Declarations
+  DATA: l_vbeln    TYPE vbeln_vl,
+        l_kunnr_sb TYPE kunnr,
+        l_matdoc   TYPE sy-msgv1,
+        l_msgid    TYPE sy-msgid,
+        l_msgnr    TYPE sy-msgno,
+        l_msgty    TYPE sy-msgty,
+        l_msgv1    TYPE sy-msgv1,
+        l_msgv2    TYPE sy-msgv2,
+        l_msgv3    TYPE sy-msgv3,
+        l_msgv4    TYPE sy-msgv4.
+
+* Get Delivery
+  l_vbeln = nast-objky.
+
+* Get delivery data
+  SELECT a~vbeln
+*         a~kunnr  "del by AKG
+         a~KUNAG  as kunnr "ins by AKG
+         b~posnr
+         b~matnr
+         b~werks
+         b~lgort
+         b~charg
+         b~lfimg
+         b~meins
+         b~vrkme
+    FROM likp AS a
+   INNER JOIN lips AS b
+      ON a~vbeln = b~vbeln
+    INTO TABLE li_lips
+   WHERE a~vbeln EQ l_vbeln.
+  IF sy-subrc EQ 0.
+
+* Get consignment partner
+    SELECT SINGLE kunnr
+      FROM vbpa
+      INTO l_kunnr_sb
+     WHERE vbeln EQ l_vbeln
+       AND parvw EQ 'SB'.
+    IF sy-subrc EQ 0.
+* Do nothing
+    ENDIF.
+
+* Delete items in case of batch split
+    DELETE li_lips WHERE lfimg IS INITIAL.
+
+* Prepare item data for 301
+    LOOP AT li_lips INTO lw_lips.
+      CLEAR lw_imseg.
+      lw_imseg-bwart = lc_mvt_301.
+      lw_imseg-sobkz = lc_ind_w.
+      lw_imseg-matnr = lw_lips-matnr.
+      lw_imseg-werks = lw_lips-werks.
+      IF l_kunnr_sb IS NOT INITIAL.
+        lw_imseg-kunnr = l_kunnr_sb.
+      ELSE.
+        lw_imseg-kunnr = lw_lips-kunnr.
+      ENDIF.
+      lw_imseg-charg = lw_lips-charg.
+      lw_imseg-erfmg = lw_lips-lfimg.
+      lw_imseg-erfme = lw_lips-meins.
+      lw_imseg-umwrk = lc_dummy_plant.
+      APPEND lw_imseg TO li_imseg.
+
+    ENDLOOP.
+  ENDIF.
+
+* Prepare header
+  CLEAR lw_imkpf.
+  lw_imkpf-bldat = sy-datum.
+  lw_imkpf-budat = sy-datum.
+  lw_imkpf-xblnr = l_vbeln.
+  IF l_kunnr_sb IS NOT INITIAL.
+    CONCATENATE lw_lips-werks l_kunnr_sb lw_lips-vbeln INTO lw_imkpf-bktxt.
+  ELSE.
+    CONCATENATE lw_lips-werks lw_lips-kunnr lw_lips-vbeln INTO lw_imkpf-bktxt.
+  ENDIF.
+
+
+* Post Goods
+  CALL FUNCTION 'MB_CREATE_GOODS_MOVEMENT'
+    EXPORTING
+      imkpf                 = lw_imkpf
+*     XALLP                 = ' '
+*     XALLB                 = ' '
+*     XALLR                 = ' '
+      ctcod                 = 'MB1B'
+*     XQMCL                 = ' '
+*     OLD_SUBRC             = ' '
+*     IPKCOM                =
+*     X_AUTHORITY           = ' '
+*     XLISU                 = 'X'
+*     XQMSR                 = ' '
+*     MSR_MB_DATA           =
+   IMPORTING
+     emkpf                 = lw_emkpf
+*     E_LVS_TAFKZ           =
+*     ES_MKPF               =
+    TABLES
+      emseg                 = li_emseg
+      imseg                 = li_imseg
+*     IMSEG_CSL_TOKEN       =
+*     ET_MSEG               =
+*     IACCOUNTING           =
+*     IACCOUNTING_CR        =
+            .
+*  WAIT UP TO 5 SECONDS.                                     "ED2K915547
+
+* Check if there are errors
+  READ TABLE li_emseg INTO lw_emseg WITH KEY msgty = 'E'.
+  IF sy-subrc EQ 0.
+
+* Post errors
+    LOOP AT li_emseg INTO lw_emseg.
+      CLEAR: l_msgid, l_msgnr, l_msgty, l_msgv1, l_msgv2, l_msgv3, l_msgv4.
+      l_msgid = lw_emseg-msgid.
+      l_msgnr = lw_emseg-msgno.
+      l_msgty = lw_emseg-msgty.
+      l_msgv1 = lw_emseg-msgv1.
+      l_msgv2 = lw_emseg-msgv2.
+      l_msgv3 = lw_emseg-msgv3.
+      l_msgv4 = lw_emseg-msgv4.
+
+      CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+        EXPORTING
+          msg_arbgb              = l_msgid
+          msg_nr                 = l_msgnr
+          msg_ty                 = l_msgty
+          msg_v1                 = l_msgv1
+          msg_v2                 = l_msgv2
+          msg_v3                 = l_msgv3
+          msg_v4                 = l_msgv4
+        EXCEPTIONS
+          message_type_not_valid = 1
+          no_sy_message          = 2
+          OTHERS                 = 3.
+      IF sy-subrc <> 0.
+        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ENDIF.
+    ENDLOOP.
+  ELSEIF lw_emkpf-msgty = 'E'.
+    CLEAR: l_msgid, l_msgnr, l_msgty, l_msgv1, l_msgv2, l_msgv3, l_msgv4.
+    l_msgid = lw_emkpf-msgid.
+    l_msgnr = lw_emkpf-msgno.
+    l_msgty = lw_emkpf-msgty.
+    l_msgv1 = lw_emkpf-msgv1.
+    l_msgv2 = lw_emkpf-msgv2.
+    l_msgv3 = lw_emkpf-msgv3.
+    l_msgv4 = lw_emkpf-msgv4.
+
+    CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+      EXPORTING
+        msg_arbgb              = l_msgid
+        msg_nr                 = l_msgnr
+        msg_ty                 = l_msgty
+        msg_v1                 = l_msgv1
+        msg_v2                 = l_msgv2
+        msg_v3                 = l_msgv3
+        msg_v4                 = l_msgv4
+      EXCEPTIONS
+        message_type_not_valid = 1
+        no_sy_message          = 2
+        OTHERS                 = 3.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+  ELSE.
+
+* Success - Commit work
+    CALL FUNCTION 'MB_POST_GOODS_MOVEMENT'
+* EXPORTING
+*   XBLNR_SD       =
+* IMPORTING
+*   EMKPF          =
+              .
+
+    COMMIT WORK.
+
+* Post success message
+    l_matdoc = lw_emkpf-mblnr.
+    CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+      EXPORTING
+        msg_arbgb                    = 'ZGMTD'
+        msg_nr                       = '480'
+        msg_ty                       = 'S'
+       msg_v1                       = l_matdoc
+*   MSG_V2                       = ' '
+*   MSG_V3                       = ' '
+*   MSG_V4                       = ' '
+     EXCEPTIONS
+       message_type_not_valid       = 1
+       no_sy_message                = 2
+       OTHERS                       = 3.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+* Check and create batch corresponding for material
+    WAIT UP TO 7 SECONDS.
+    PERFORM sub_check_create_dummy_batch USING li_imseg.
+
+* If if dummy batch was created successfully
+    IF g_success EQ c_x.
+      WAIT UP TO 10 SECONDS.
+* Transfer stock to dummy batch
+      PERFORM sub_batch_transfer USING li_imseg
+                                       l_vbeln.
+
+    ENDIF.
+  ENDIF.
+
+
+ENDFORM.                    " SUB_PROCESSING
+*&---------------------------------------------------------------------*
+*&      Form  SUB_CHECK_CREATE_DUMMY_BATCH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_LI_IMSEG  text
+*----------------------------------------------------------------------*
+FORM sub_check_create_dummy_batch  USING  ui_imseg TYPE tt_imseg.
+
+  TYPES: BEGIN OF lty_mch1,
+          matnr TYPE matnr,
+          charg TYPE charg_d,
+         END OF lty_mch1.
+
+* Internal table declarations
+  DATA: li_mch1     TYPE STANDARD TABLE OF lty_mch1,
+        li_return   TYPE STANDARD TABLE OF bapiret2.
+
+  DATA: lw_imseg         TYPE imseg,
+        lw_mch1          TYPE lty_mch1,
+        lw_batch_atrr    TYPE bapibatchatt,
+        lw_return        TYPE bapiret2.
+
+* Variable declarations
+  DATA: l_error    TYPE flag,
+        l_msgid    TYPE sy-msgid,
+        l_msgnr    TYPE sy-msgno,
+        l_msgty    TYPE sy-msgty,
+        l_msgv1    TYPE sy-msgv1,
+        l_msgv2    TYPE sy-msgv2,
+        l_msgv3    TYPE sy-msgv3,
+        l_msgv4    TYPE sy-msgv4.
+
+  IF NOT ui_imseg[] IS INITIAL.
+    SELECT matnr
+           charg
+      FROM mch1
+      INTO TABLE li_mch1
+       FOR ALL ENTRIES IN ui_imseg
+     WHERE matnr = ui_imseg-matnr
+       AND charg = c_dummy_batch.     "CONSGNMENT
+    IF sy-subrc EQ 0.
+      SORT li_mch1 BY matnr.
+    ENDIF.
+
+    LOOP AT ui_imseg INTO lw_imseg.
+      CLEAR lw_mch1.
+      READ TABLE li_mch1 INTO lw_mch1 WITH KEY matnr = lw_imseg-matnr
+                                      BINARY SEARCH.
+      IF sy-subrc NE 0.
+
+        CLEAR: g_success, lw_batch_atrr.
+        lw_batch_atrr-prod_date  = sy-datum.
+        lw_batch_atrr-expirydate = c_exp_date.              "99991231
+
+        CALL FUNCTION 'BAPI_BATCH_CREATE'
+                  EXPORTING
+                    material                  = lw_imseg-matnr
+                   batch                      = c_dummy_batch        "CONSGNMENT'
+                   plant                      = lw_imseg-werks
+                   batchattributes            = lw_batch_atrr
+*   BATCHCONTROLFIELDS         =
+*   BATCHSTORAGELOCATION       =
+*   INTERNALNUMBERCOM          =
+*   EXTENSION1                 =
+*   MATERIAL_EVG               =
+* IMPORTING
+*   BATCH                      =
+*   BATCHATTRIBUTES            =
+                 TABLES
+                   return                     = li_return
+                          .
+
+* Check if success or failure
+        CLEAR lw_return.
+        READ TABLE li_return INTO lw_return WITH KEY type = c_msgty_a.
+        IF sy-subrc NE 0.
+          READ TABLE li_return INTO lw_return WITH KEY type = c_msgty_e.
+          IF sy-subrc EQ 0.
+            l_error = c_x.
+          ELSE.
+            READ TABLE li_return INTO lw_return WITH KEY type = c_msgty_s.
+            IF sy-subrc EQ 0.
+              CLEAR l_error.
+            ENDIF.
+          ENDIF.
+        ELSE.
+          l_error = c_x.
+        ENDIF.
+
+        IF l_error IS INITIAL.
+* Dummy batch created successfully
+
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+           EXPORTING
+             wait          = c_x
+* IMPORTING
+*   RETURN        =
+                    .
+
+* Due to locking issues
+          WAIT UP TO 4 SECONDS.
+
+          l_msgv1 = lw_imseg-matnr.
+          CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+            EXPORTING
+              msg_arbgb                    = 'ZGMTD'
+              msg_nr                       = '417'
+              msg_ty                       = c_msgty_s
+             msg_v1                       = l_msgv1
+*   MSG_V2                       = ' '
+*   MSG_V3                       = ' '
+*   MSG_V4                       = ' '
+           EXCEPTIONS
+             message_type_not_valid       = 1
+             no_sy_message                = 2
+             OTHERS                       = 3.
+          IF sy-subrc <> 0.
+            MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+          ENDIF.
+          g_success = c_x.
+
+        ELSE.
+* Error in creating Dummy batch
+          LOOP AT li_return INTO lw_return WHERE type EQ c_msgty_e
+                                              OR type EQ c_msgty_a.
+
+            CLEAR: l_msgid, l_msgnr, l_msgty, l_msgv1, l_msgv2, l_msgv3, l_msgv4.
+            l_msgid = lw_return-id.
+            l_msgnr = lw_return-number.
+            l_msgty = lw_return-type.
+            l_msgv1 = lw_return-message_v1.
+            l_msgv2 = lw_return-message_v2.
+            l_msgv3 = lw_return-message_v3.
+            l_msgv4 = lw_return-message_v4.
+
+            CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+              EXPORTING
+                msg_arbgb              = l_msgid
+                msg_nr                 = l_msgnr
+                msg_ty                 = l_msgty
+                msg_v1                 = l_msgv1
+                msg_v2                 = l_msgv2
+                msg_v3                 = l_msgv3
+                msg_v4                 = l_msgv4
+              EXCEPTIONS
+                message_type_not_valid = 1
+                no_sy_message          = 2
+                OTHERS                 = 3.
+            IF sy-subrc <> 0.
+              MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+            ENDIF.
+
+          ENDLOOP.
+        ENDIF.
+      ELSE.
+        g_success = c_x.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+ENDFORM.                    " SUB_CHECK_CREATE_DUMMY_BATCH
+*&---------------------------------------------------------------------*
+*&      Form  SUB_BATCH_TRANSFER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_LI_IMSEG  text
+*----------------------------------------------------------------------*
+FORM sub_batch_transfer  USING  ui_imseg TYPE tt_imseg
+                                 u_vbeln TYPE vbeln_vl.
+
+* Internal table declarations
+  DATA: li_imseg TYPE STANDARD TABLE OF imseg,
+        li_emseg TYPE STANDARD TABLE OF emseg.
+
+* Workarea declarations
+  DATA: lw_imseg         TYPE imseg,
+        lw_emkpf         TYPE emkpf,
+        lw_imseg_item    TYPE imseg,
+        lw_imkpf         TYPE imkpf,
+        lw_emseg         TYPE emseg.
+
+*Variable declaration
+  DATA:  l_msgid    TYPE sy-msgid,
+         l_msgnr    TYPE sy-msgno,
+         l_msgty    TYPE sy-msgty,
+         l_msgv1    TYPE sy-msgv1,
+         l_msgv2    TYPE sy-msgv2,
+         l_msgv3    TYPE sy-msgv3,
+         l_msgv4    TYPE sy-msgv4.
+* Header
+  CLEAR lw_imkpf.
+  lw_imkpf-bldat = sy-datum.
+  lw_imkpf-budat = sy-datum.
+  lw_imkpf-usnam = sy-uname.
+  lw_imkpf-xblnr = u_vbeln.
+
+* Item
+  LOOP AT ui_imseg INTO lw_imseg.
+    CLEAR lw_imseg_item.
+    lw_imseg_item-bwart = c_mvt_309.
+    lw_imseg_item-sobkz = c_ind_w.
+    lw_imseg_item-matnr = lw_imseg-matnr.
+    lw_imseg_item-werks = '5999'.
+    lw_imseg_item-kunnr = lw_imseg-kunnr.
+    lw_imseg_item-charg = lw_imseg-charg.
+    lw_imseg_item-umcha = c_dummy_batch.           "CONSGNMENT
+    lw_imseg_item-erfmg = lw_imseg-erfmg.
+    lw_imseg_item-erfme = lw_imseg-erfme.
+    lw_imseg_item-umwrk = '5999'.
+*    lw_imseg_item-vptnr = lw_imseg-kunnr.
+    APPEND lw_imseg_item TO li_imseg.
+    CLEAR lw_imseg.
+  ENDLOOP.
+
+  CALL FUNCTION 'MB_CREATE_GOODS_MOVEMENT'
+    EXPORTING
+      imkpf                 = lw_imkpf
+*   XALLP                 = ' '
+*   XALLB                 = ' '
+*   XALLR                 = ' '
+     ctcod                 = 'MB1B'
+*   XQMCL                 = ' '
+*   OLD_SUBRC             = ' '
+*   IPKCOM                =
+*   X_AUTHORITY           = ' '
+*   XLISU                 = 'X'
+*   XQMSR                 = ' '
+*   MSR_MB_DATA           =
+   IMPORTING
+     emkpf                 = lw_emkpf
+*   E_LVS_TAFKZ           =
+*   ES_MKPF               =
+    TABLES
+      emseg                 = li_emseg
+      imseg                 = li_imseg
+*   IMSEG_CSL_TOKEN       =
+*   ET_MSEG               =
+*   IACCOUNTING           =
+*   IACCOUNTING_CR        =
+            .
+*  WAIT UP TO 5 SECONDS.                                     "ED2K915547
+* Check if error
+  READ TABLE li_emseg INTO lw_emseg WITH KEY msgty = c_msgty_e.
+  IF sy-subrc NE 0.
+
+* Commit
+    CALL FUNCTION 'MB_POST_GOODS_MOVEMENT'
+* EXPORTING
+*   XBLNR_SD       =
+* IMPORTING
+*   EMKPF          =
+              .
+
+    COMMIT WORK.
+
+    WAIT UP TO 7 SECONDS.                                   "ED2K915629
+
+    CLEAR l_msgv1.
+    l_msgv1 = lw_emkpf-mblnr.
+
+    CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+      EXPORTING
+        msg_arbgb                    = 'ZGMTD'
+        msg_nr                       = '395'
+        msg_ty                       = c_msgty_s
+       msg_v1                       = l_msgv1
+*       MSG_V2                       = ' '
+*       MSG_V3                       = ' '
+*       MSG_V4                       = ' '
+     EXCEPTIONS
+       message_type_not_valid       = 1
+       no_sy_message                = 2
+       OTHERS                       = 3.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+  ELSEIF lw_emkpf-msgty = 'E'.
+    CLEAR: l_msgid, l_msgnr, l_msgty, l_msgv1, l_msgv2, l_msgv3, l_msgv4.
+    l_msgid = lw_emkpf-msgid.
+    l_msgnr = lw_emkpf-msgno.
+    l_msgty = lw_emkpf-msgty.
+    l_msgv1 = lw_emkpf-msgv1.
+    l_msgv2 = lw_emkpf-msgv2.
+    l_msgv3 = lw_emkpf-msgv3.
+    l_msgv4 = lw_emkpf-msgv4.
+
+    CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+      EXPORTING
+        msg_arbgb              = l_msgid
+        msg_nr                 = l_msgnr
+        msg_ty                 = l_msgty
+        msg_v1                 = l_msgv1
+        msg_v2                 = l_msgv2
+        msg_v3                 = l_msgv3
+        msg_v4                 = l_msgv4
+      EXCEPTIONS
+        message_type_not_valid = 1
+        no_sy_message          = 2
+        OTHERS                 = 3.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+  ELSE.
+* Report Error
+    CLEAR lw_emseg.
+    LOOP AT li_emseg INTO lw_emseg.
+      CLEAR: l_msgid, l_msgnr, l_msgty, l_msgv1, l_msgv2, l_msgv3, l_msgv4.
+      l_msgid = lw_emseg-msgid.
+      l_msgnr = lw_emseg-msgno.
+      l_msgty = lw_emseg-msgty.
+      l_msgv1 = lw_emseg-msgv1.
+      l_msgv2 = lw_emseg-msgv2.
+      l_msgv3 = lw_emseg-msgv3.
+      l_msgv4 = lw_emseg-msgv4.
+
+      CALL FUNCTION 'NAST_PROTOCOL_UPDATE'
+        EXPORTING
+          msg_arbgb              = l_msgid
+          msg_nr                 = l_msgnr
+          msg_ty                 = l_msgty
+          msg_v1                 = l_msgv1
+          msg_v2                 = l_msgv2
+          msg_v3                 = l_msgv3
+          msg_v4                 = l_msgv4
+        EXCEPTIONS
+          message_type_not_valid = 1
+          no_sy_message          = 2
+          OTHERS                 = 3.
+      IF sy-subrc <> 0.
+        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ENDIF.
+      CLEAR lw_emseg.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.                    " SUB_BATCH_TRANSFER

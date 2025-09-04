@@ -1,0 +1,78 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZGRTR_FI_HRC_CREDIT_TOP
+*&---------------------------------------------------------------------*
+
+TABLES: knkk.
+
+*$ Types
+TYPE-POOLS slis .
+TYPES BEGIN OF ty_files.
+INCLUDE STRUCTURE /hex/rsfillst.
+TYPES END OF ty_files.
+
+TYPES : BEGIN OF ty_dir,
+          values TYPE char100,
+        END OF ty_dir.
+
+TYPES BEGIN OF ty_disp.
+INCLUDE STRUCTURE zgrtr_s_credit_data.
+TYPES END OF ty_disp.
+
+TYPES: BEGIN OF ty_input,
+         contents TYPE string,
+       END OF ty_input.
+
+TYPES: BEGIN OF ty_return,
+         customer TYPE kunnr,
+         kkber    TYPE kkber,
+         segment  TYPE ukm_credit_sgmnt,
+         msg      TYPE char255,
+       END OF ty_return.
+
+TYPES tt_files      TYPE STANDARD TABLE OF ty_files.
+TYPES tt_disp       TYPE STANDARD TABLE OF ty_disp.
+TYPES tt_input      TYPE STANDARD TABLE OF ty_input.
+
+*$ Tables
+DATA t_files        TYPE tt_files.
+DATA t_return_f     TYPE TABLE OF ty_return.
+DATA t_return_s     TYPE TABLE OF ty_return.
+DATA t_disp         TYPE tt_disp.
+DATA t_fieldcat_s   TYPE slis_t_fieldcat_alv.
+DATA t_fieldcat_f   TYPE slis_t_fieldcat_alv.
+DATA t_input        TYPE TABLE OF /hex/input.
+DATA t_inp          TYPE TABLE OF /hex/input.
+
+*$ Workareas
+DATA w_files        TYPE ty_files.
+DATA w_return       TYPE ty_return.
+DATA v_pa           TYPE bp_partner.
+DATA v_credit_segment TYPE ukm_credit_sgmnt.
+
+*$ Variables
+DATA v_abort        TYPE char1.
+DATA v_emsg         TYPE string.
+DATA v_fscm_active  TYPE char1.
+
+*Variables:
+DATA:
+  gv_log_handle TYPE balloghndl,
+  gv_msgv1      TYPE symsgv,
+  gv_bkpath     TYPE eps2filnam,
+  gt_log        TYPE /hex/tt_audit_log,
+  gt_return     TYPE bapiret2_t.
+DATA gv_msg     TYPE string. " changed by pavankumar on 20.02.2024
+
+
+*Constants:
+CONSTANTS:
+  gc_object                  TYPE bal_s_log-object      VALUE 'ZGRTR_HRC_CRED_UPD',
+  gc_subobject               TYPE bal_s_log-subobject   VALUE 'ZGRTR_HRC_CREDIT_UPD',
+  gc_message_id              TYPE bapiret2-id           VALUE 'ZGRTR',
+  gc_success                 TYPE c                     VALUE 'S',
+  gc_error                   TYPE c                     VALUE 'E',
+  gc_detail_level1           TYPE c                     VALUE '1',
+  gc_problem_class_important TYPE c                     VALUE '2',
+  gc_probclass_medium        TYPE bal_s_msg-probclass   VALUE '3',
+  gc_probclass_low           TYPE bal_s_msg-probclass   VALUE '4',
+  gc_problem_class_other     TYPE c                     VALUE ''.
