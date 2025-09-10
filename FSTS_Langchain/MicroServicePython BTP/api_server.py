@@ -1,9 +1,6 @@
+import base64, os, traceback, uuid, time
 from fastapi import FastAPI, Body, BackgroundTasks
 from pydantic import BaseModel
-import base64
-import os
-import uuid
-import time
 from main import main, generate_final_messages
 from fastapi.middleware.cors import CORSMiddleware
 from utils import process_markdown
@@ -105,7 +102,8 @@ def get_fsts_base64(background_tasks: BackgroundTasks, input_b64: str = Body(...
             process_markdown(output_path)  # creates PDF
             set_task_status(task_id, "Completed")
         except Exception as e:
-            print(f"[ERROR] Workflow failed for task {task_id}: {e}")
+            print(f"[ERROR] Workflow failed for task {task_id}")
+            traceback.print_exc()  # prints the full error traceback
             set_task_status(task_id, "Failed")
     
     register_task(task_id)

@@ -2,9 +2,11 @@ from collections import defaultdict
 import os
 import re
 import markdown2
-from weasyprint import HTML, CSS
+# from weasyprint import HTML, CSS
 import logging
 from fontTools.misc.loggingTools import configLogger
+import yaml
+from xhtml2pdf import pisa
 
 # --- Disable fontTools internal logging completely ---
 configLogger(level=logging.CRITICAL)
@@ -15,6 +17,30 @@ logging.getLogger('weasyprint').setLevel(logging.CRITICAL)
 logging.getLogger().setLevel(logging.CRITICAL)
 
 token_usage_history = []  # Global list to collect token usage from all agent steps
+
+
+def load_prompt(agent_name: str):
+    """Load a prompt definition from prompts/{agent_name}.yaml"""
+    path = os.path.join("prompts", f"{agent_name}.yaml")
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+def format_user_prompt(prompt_def, state):
+    params = {key: state[key] for key in prompt_def.get("parameters", {})}
+    return prompt_def["user_prompt"].format(**params)
+
+def parse_route(content):
+    """Extract ROUTE directive from model output."""
+    if isinstance(content, list):
+        if all(isinstance(item, dict) and "text" in item for item in content):
+            content = " ".join(item["text"] for item in content)
+        else:
+            content = " ".join(map(str, content))
+    elif not isinstance(content, str):
+        content = str(content)
+
+    match = re.search(r"\[ROUTE:\s*(\w+)\]", content)
+    return match.group(1) if match else "output_reviewer"
 
 # Utility to export a LangGraph graph to PNG
 def export_graph_png(app, filename):
@@ -54,17 +80,17 @@ def print_total_token_usage(token_usage_history):
 def logging_wrapper(fn, name):
     def wrapped(state):
         print(f"\n🟦 Running node: {name}")
-        # print(f"🔷 Input state: {state}")
+        print(f"🔷 Input state: {state}")
 
         before_usage_count = len(token_usage_history)
         result = fn(state)
         
         # Print the last prompt given to the agent, if present (after fn runs)
-        # last_prompt = result.get('last_user_prompt', None)
-        # if last_prompt:
-            # print(f"📝 Prompt sent to agent:\n{last_prompt}\n")
+        last_prompt = result.get('last_user_prompt', None)
+        if last_prompt:
+            print(f"📝 Prompt sent to agent:\n{last_prompt}\n")
 
-        # print(f"🟩 Output from {name}: {result}\n")
+        print(f"🟩 Output from {name}: {result}\n")
 
         # Print token usage for this run (if any new usage was added)
         new_usages = token_usage_history[before_usage_count:]
@@ -149,7 +175,84 @@ def clean_markdown(md: str) -> str:
 
     return '\n'.join(cleaned) + "\n"
 
+# def convert_markdown_to_pdf_old(markdown_file: str, output_pdf: str):
+#     if not os.path.exists(markdown_file):
+#         raise FileNotFoundError(f"File not found -> '{markdown_file}'")
+
+#     with open(markdown_file, 'r', encoding='utf-8') as f:
+#         markdown_content = f.read()
+
+#     html = markdown2.markdown(markdown_content, extras=[
+#         "fenced-code-blocks",
+#         "tables",
+#         "strike",
+#         "cuddled-lists",
+#         "header-ids",
+#         "code-friendly"
+#     ])
+
+#     css = """
+# @page {
+#     size: A4;
+#     margin: 1in 0.7in 1.1in 0.7in;
+#     @bottom-center {
+#         content: "Page " counter(page) " of " counter(pages);
+#         font-size: 11pt;
+#         color: #444;
+#         font-family: Arial, sans-serif;
+#     }
+# }
+# body {
+#     font-family: Arial, sans-serif;
+#     padding: 0;
+#     line-height: 1.6;
+# }
+# h1, h2, h3 {
+#     color: #111;
+# }
+# table {
+#     width: 100%;
+#     border-collapse: collapse;
+#     margin: 1em 0;
+#     font-size: 11pt;
+# }
+# th, td {
+#     border: 1px solid #bbb;
+#     padding: 8px;
+#     color: #000;
+# }
+# th {
+#     background-color: #f2f2f2;
+# }
+# pre {
+#     background-color: #f5f5f5;
+#     padding: 12px;
+#     border-radius: 6px;
+#     font-family: monospace;
+#     white-space: pre-wrap;
+#     font-size: 10pt;
+# }
+# hr {
+#     border: none;
+#     height: 1px;
+#     background: #ccc;
+#     margin: 2em 0;
+# }
+# ul, ol {
+#     margin-left: 1.5em;
+# }
+# """
+#     full_html = f"<html><head><meta charset='utf-8'></head><body>{html}</body></html>"
+
+#     HTML(string=full_html).write_pdf(output_pdf, stylesheets=[CSS(string=css)])
+#     return output_pdf
+
 def convert_markdown_to_pdf(markdown_file: str, output_pdf: str):
+    """
+    Convert markdown to PDF using xhtml2pdf.
+    Install: pip install xhtml2pdf markdown2
+    Pure Python solution, works everywhere.
+    """    
     if not os.path.exists(markdown_file):
         raise FileNotFoundError(f"File not found -> '{markdown_file}'")
 
@@ -165,60 +268,99 @@ def convert_markdown_to_pdf(markdown_file: str, output_pdf: str):
         "code-friendly"
     ])
 
+    # xhtml2pdf specific CSS
     css = """
-@page {
-    size: A4;
-    margin: 1in 0.7in 1.1in 0.7in;
-    @bottom-center {
-        content: "Page " counter(page) " of " counter(pages);
-        font-size: 11pt;
-        color: #444;
-        font-family: Arial, sans-serif;
+    <style>
+    @page {
+        size: A4;
+        margin: 2.5cm 1.8cm 2.8cm 1.8cm;
+        @frame footer {
+            -pdf-frame-content: footerContent;
+            bottom: 1cm;
+            margin-left: 1cm;
+            margin-right: 1cm;
+            height: 1cm;
+        }
     }
-}
-body {
-    font-family: Arial, sans-serif;
-    padding: 0;
-    line-height: 1.6;
-}
-h1, h2, h3 {
-    color: #111;
-}
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1em 0;
-    font-size: 11pt;
-}
-th, td {
-    border: 1px solid #bbb;
-    padding: 8px;
-    color: #000;
-}
-th {
-    background-color: #f2f2f2;
-}
-pre {
-    background-color: #f5f5f5;
-    padding: 12px;
-    border-radius: 6px;
-    font-family: monospace;
-    white-space: pre-wrap;
-    font-size: 10pt;
-}
-hr {
-    border: none;
-    height: 1px;
-    background: #ccc;
-    margin: 2em 0;
-}
-ul, ol {
-    margin-left: 1.5em;
-}
-"""
-    full_html = f"<html><head><meta charset='utf-8'></head><body>{html}</body></html>"
-
-    HTML(string=full_html).write_pdf(output_pdf, stylesheets=[CSS(string=css)])
+    body {
+        font-family: Arial, sans-serif;
+        font-size: 11pt;
+        line-height: 1.6;
+    }
+    h1 { font-size: 24pt; color: #111; margin-top: 0; }
+    h2 { font-size: 18pt; color: #111; }
+    h3 { font-size: 14pt; color: #111; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1em 0;
+        -pdf-keep-with-next: true;
+    }
+    th, td {
+        border: 1px solid #bbb;
+        padding: 8px;
+        text-align: left;
+    }
+    th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+    pre {
+        background-color: #f5f5f5;
+        padding: 12px;
+        border: 1px solid #ddd;
+        font-family: Courier, monospace;
+        font-size: 9pt;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    code {
+        background-color: #f5f5f5;
+        padding: 2px 4px;
+        font-family: Courier, monospace;
+        font-size: 9pt;
+    }
+    hr {
+        border: none;
+        height: 1px;
+        background-color: #ccc;
+        margin: 2em 0;
+    }
+    ul, ol {
+        margin-left: 1.5em;
+    }
+    li {
+        margin-bottom: 0.5em;
+    }
+    </style>
+    """
+    
+    full_html = f"""
+    <html>
+    <head>
+        <meta charset='utf-8'>
+        {css}
+    </head>
+    <body>
+        {html}
+        <div id="footerContent" style="text-align: center; font-size: 10pt; color: #444;">
+            Page <pdf:pagenumber/> of <pdf:pagecount/>
+        </div>
+    </body>
+    </html>
+    """
+    
+    # Create PDF
+    with open(output_pdf, "w+b") as output_file:
+        pisa_status = pisa.CreatePDF(
+            full_html,
+            dest=output_file,
+            encoding='utf-8'
+        )
+    
+    if pisa_status.err:
+        raise Exception(f"Error creating PDF: {pisa_status.err}")
+    
     return output_pdf
 
 def process_markdown(md_file: str):

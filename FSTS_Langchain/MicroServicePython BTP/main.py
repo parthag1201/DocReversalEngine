@@ -20,7 +20,7 @@ BASE_PATH = os.getcwd()
 data_processor = DataProcessor(BASE_PATH)
 RUN_FOLDER = data_processor.get_run_folder()
 final_dir = data_processor.get_final_dir()
-code_input, template_text = data_processor.get_data()
+_, template_text = data_processor.get_data()
 
 # --- LLM initialization ---
 load_dotenv()
