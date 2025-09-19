@@ -54,13 +54,6 @@ def main(code_input_b64=None, task_id=None):
     initial_state = {
         "code_input": code_input_val,
         "template_text": template_text_val,
-        "analyze_code_task": analyze_code_task,
-        "foreign_dependency_agent": foreign_dependency_task,
-        "functional_spec_task": functional_spec_task,
-        "technical_spec_task": technical_spec_task,
-        "initial_consolidation_task": initial_consolidation_task,
-        "output_review_feedback_task": output_review_feedback_task,
-        "final_specification_task": final_specification_task,
         "model": llm_model,
         "messages": [],
         "review_count": 0,

@@ -5,21 +5,29 @@ import re
 # from tasks import analyze_code_task, functional_spec_task, technical_spec_task, initial_consolidation_task, output_review_feedback_task, final_specification_task
 from utils import add_token_usage, load_prompt, format_user_prompt, parse_route
 import inspect
+from langchain.prompts import ChatPromptTemplate, PromptTemplate
+
 
 def get_self_name():
     return inspect.currentframe().f_back.f_code.co_name
 
 def generic_run_agent(agent_name, state, output_key, next_node):
     prompt_def = load_prompt(agent_name)
-    user_prompt = format_user_prompt(prompt_def, state)
 
-    state["last_user_prompt"] = user_prompt
-    messages = [
-        {"role": "system", "content": prompt_def["system_prompt"]},
-        {"role": "user", "content": user_prompt},
-    ]
+    # Convert YAML prompts into a LangChain ChatPromptTemplate
+    chat_prompt = ChatPromptTemplate.from_messages([
+        ("system", prompt_def["system_prompt"]),
+        ("user", prompt_def["user_prompt"])
+    ])
 
-    response = state["model"].invoke(messages)
+    print("chat_prompt: ",chat_prompt)
+
+    # Format with state variables
+    formatted_prompt = chat_prompt.format_messages(**state)
+    
+    print("formatted_prompt: ",formatted_prompt)
+    # Invoke model
+    response = state["model"].invoke(formatted_prompt)
     add_token_usage(response, agent_name)
 
     state[output_key] = response.content
@@ -50,9 +58,9 @@ def manager_agent(state):
     output_reviewer_feedback = state.get("review_feedback", "")
     has_feedback = bool(output_reviewer_feedback and output_reviewer_feedback.strip())
 
-    task = state["final_specification_task"] if has_feedback else state["initial_consolidation_task"]
-    task_description = task.description
-    task_expected_output = task.expected_output
+    task = prompt_def["final_specification_task"] if has_feedback else prompt_def["initial_consolidation_task"]
+    task_description = task.get("description", "")
+    task_expected_output = task.get("expected_output", "")
 
     if has_feedback:
         previous_manager_block = f"--- Manager Previous Output ---\n{state['manager_output']}\n"
@@ -64,24 +72,23 @@ def manager_agent(state):
         previous_manager_block = ""
         feedback_block = f"--- Functional Spec ---\n{fs}\n\n--- Technical Spec ---\n{ts}\n--- Foreign Dependencies ---\n{fd}\n"
 
-    # --- Format YAML-driven user prompt ---
-    user_prompt = format_user_prompt(prompt_def, {
-        "task_description": task_description,
-        "task_expected_output": task_expected_output,
-        "template_text": state["template_text"],
-        "previous_manager_block": previous_manager_block,
-        "feedback_block": feedback_block,
-    })
+    # Use LangChain ChatPromptTemplate for message formatting
+    chat_prompt = ChatPromptTemplate.from_messages([
+        ("system", prompt_def["system_prompt"]),
+        ("user", prompt_def["user_prompt"])
+    ])
+    
+    formatted_prompt = chat_prompt.format_messages(
+        task_description=task_description,
+        task_expected_output=task_expected_output,
+        template_text=state["template_text"],
+        previous_manager_block=previous_manager_block,
+        feedback_block=feedback_block,
+    )
 
-    state["last_user_prompt"] = user_prompt
+    state["last_user_prompt"] = formatted_prompt[1].content
 
-    # --- Reuse generic_run_agent-like invocation ---
-    messages = [
-        {"role": "system", "content": prompt_def["system_prompt"]},
-        {"role": "user", "content": user_prompt},
-    ]
-
-    response = state["model"].invoke(messages)
+    response = state["model"].invoke(formatted_prompt)
     add_token_usage(response, agent_name)
 
     # --- Dynamic routing logic ---

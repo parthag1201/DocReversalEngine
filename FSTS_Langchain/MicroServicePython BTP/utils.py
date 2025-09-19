@@ -2,7 +2,7 @@ from collections import defaultdict
 import os
 import re
 import markdown2
-# from weasyprint import HTML, CSS
+from weasyprint import HTML, CSS
 import logging
 from fontTools.misc.loggingTools import configLogger
 import yaml
@@ -175,84 +175,7 @@ def clean_markdown(md: str) -> str:
 
     return '\n'.join(cleaned) + "\n"
 
-# def convert_markdown_to_pdf_old(markdown_file: str, output_pdf: str):
-#     if not os.path.exists(markdown_file):
-#         raise FileNotFoundError(f"File not found -> '{markdown_file}'")
-
-#     with open(markdown_file, 'r', encoding='utf-8') as f:
-#         markdown_content = f.read()
-
-#     html = markdown2.markdown(markdown_content, extras=[
-#         "fenced-code-blocks",
-#         "tables",
-#         "strike",
-#         "cuddled-lists",
-#         "header-ids",
-#         "code-friendly"
-#     ])
-
-#     css = """
-# @page {
-#     size: A4;
-#     margin: 1in 0.7in 1.1in 0.7in;
-#     @bottom-center {
-#         content: "Page " counter(page) " of " counter(pages);
-#         font-size: 11pt;
-#         color: #444;
-#         font-family: Arial, sans-serif;
-#     }
-# }
-# body {
-#     font-family: Arial, sans-serif;
-#     padding: 0;
-#     line-height: 1.6;
-# }
-# h1, h2, h3 {
-#     color: #111;
-# }
-# table {
-#     width: 100%;
-#     border-collapse: collapse;
-#     margin: 1em 0;
-#     font-size: 11pt;
-# }
-# th, td {
-#     border: 1px solid #bbb;
-#     padding: 8px;
-#     color: #000;
-# }
-# th {
-#     background-color: #f2f2f2;
-# }
-# pre {
-#     background-color: #f5f5f5;
-#     padding: 12px;
-#     border-radius: 6px;
-#     font-family: monospace;
-#     white-space: pre-wrap;
-#     font-size: 10pt;
-# }
-# hr {
-#     border: none;
-#     height: 1px;
-#     background: #ccc;
-#     margin: 2em 0;
-# }
-# ul, ol {
-#     margin-left: 1.5em;
-# }
-# """
-#     full_html = f"<html><head><meta charset='utf-8'></head><body>{html}</body></html>"
-
-#     HTML(string=full_html).write_pdf(output_pdf, stylesheets=[CSS(string=css)])
-#     return output_pdf
-
 def convert_markdown_to_pdf(markdown_file: str, output_pdf: str):
-    """
-    Convert markdown to PDF using xhtml2pdf.
-    Install: pip install xhtml2pdf markdown2
-    Pure Python solution, works everywhere.
-    """    
     if not os.path.exists(markdown_file):
         raise FileNotFoundError(f"File not found -> '{markdown_file}'")
 
@@ -268,99 +191,144 @@ def convert_markdown_to_pdf(markdown_file: str, output_pdf: str):
         "code-friendly"
     ])
 
-    # xhtml2pdf specific CSS
     css = """
-    <style>
+@page {
+    size: A4;
+    margin: 1in 0.7in 1.1in 0.7in;
+    @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 11pt;
+        color: #444;
+        font-family: Arial, sans-serif;
+    }
+}
+body {
+    font-family: Arial, sans-serif;
+    padding: 0;
+    line-height: 1.6;
+}
+h1, h2, h3 {
+    color: #111;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 11pt;
+}
+th, td {
+    border: 1px solid #bbb;
+    padding: 8px;
+    color: #000;
+}
+th {
+    background-color: #f2f2f2;
+}
+pre {
+    background-color: #f5f5f5;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    font-size: 10pt;
+}
+hr {
+    border: none;
+    height: 1px;
+    background: #ccc;
+    margin: 2em 0;
+}
+ul, ol {
+    margin-left: 1.5em;
+}
+"""
+    full_html = f"<html><head><meta charset='utf-8'></head><body>{html}</body></html>"
+
+    HTML(string=full_html).write_pdf(output_pdf, stylesheets=[CSS(string=css)])
+    return output_pdf
+
+def convert_markdown_to_pdf_test(markdown_file: str, output_pdf: str):
+    """
+    Convert markdown to PDF using xhtml2pdf (pisa).
+    Notes:
+      - Keep CSS simple; xhtml2pdf has limited CSS support.
+      - Ensure code blocks use <pre><code> so whitespace preserved.
+      - For table header repeat, force thead display.
+    """
+    if not os.path.exists(markdown_file):
+        raise FileNotFoundError(f"File not found -> '{markdown_file}'")
+
+    with open(markdown_file, 'r', encoding='utf-8') as f:
+        markdown_content = f.read()
+
+    # Use fenced-code-blocks and code-friendly to better preserve code blocks
+    html_body = markdown2.markdown(markdown_content, extras=[
+        "fenced-code-blocks", "code-friendly", "tables", "header-ids", "strike"
+    ])
+
+    css = """
+    <style type="text/css">
     @page {
         size: A4;
         margin: 2.5cm 1.8cm 2.8cm 1.8cm;
-        @frame footer {
-            -pdf-frame-content: footerContent;
-            bottom: 1cm;
-            margin-left: 1cm;
-            margin-right: 1cm;
-            height: 1cm;
-        }
     }
     body {
         font-family: Arial, sans-serif;
         font-size: 11pt;
-        line-height: 1.6;
+        line-height: 1.5;
     }
-    h1 { font-size: 24pt; color: #111; margin-top: 0; }
-    h2 { font-size: 18pt; color: #111; }
-    h3 { font-size: 14pt; color: #111; }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 1em 0;
-        -pdf-keep-with-next: true;
-    }
-    th, td {
-        border: 1px solid #bbb;
-        padding: 8px;
-        text-align: left;
-    }
-    th {
-        background-color: #f2f2f2;
-        font-weight: bold;
+    h1 { font-size: 24pt; margin: 0.2em 0; }
+    h2 { font-size: 18pt; margin: 0.2em 0; }
+    h3 { font-size: 14pt; margin: 0.2em 0; }
+
+    /* Tables: ensure header repeats on page breaks */
+    table { width: 100%; border-collapse: collapse; margin: 0.8em 0; }
+    thead { display: table-header-group; } 
+    tbody { display: table-row-group; }
+    th, td { border: 1px solid #bbb; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+
+    pre, code {
+        font-family: Courier, monospace;
+        font-size: 9pt;
     }
     pre {
         background-color: #f5f5f5;
-        padding: 12px;
+        padding: 10px;
         border: 1px solid #ddd;
-        font-family: Courier, monospace;
-        font-size: 9pt;
-        white-space: pre-wrap;
-        word-wrap: break-word;
+        white-space: pre; /* prevent wrapping */
+        overflow-x: auto; /* horizontal scroll */
     }
-    code {
-        background-color: #f5f5f5;
-        padding: 2px 4px;
-        font-family: Courier, monospace;
-        font-size: 9pt;
-    }
-    hr {
-        border: none;
-        height: 1px;
-        background-color: #ccc;
-        margin: 2em 0;
-    }
-    ul, ol {
-        margin-left: 1.5em;
-    }
-    li {
-        margin-bottom: 0.5em;
-    }
+
+    /* Avoid breaking table rows across pages if possible */
+    tr { page-break-inside: avoid; }
+
+    /* Simple footer region: placed as last element (xhtml2pdf has limited support) */
+    .pdf-footer { text-align:center; font-size:10pt; color: #444; }
     </style>
     """
-    
-    full_html = f"""
+
+    full_html = f"""<!doctype html>
     <html>
-    <head>
-        <meta charset='utf-8'>
+      <head>
+        <meta charset="utf-8"/>
         {css}
-    </head>
-    <body>
-        {html}
-        <div id="footerContent" style="text-align: center; font-size: 10pt; color: #444;">
+      </head>
+      <body>
+        {html_body}
+        <div class="pdf-footer">
             Page <pdf:pagenumber/> of <pdf:pagecount/>
         </div>
-    </body>
+      </body>
     </html>
     """
-    
-    # Create PDF
+
     with open(output_pdf, "w+b") as output_file:
-        pisa_status = pisa.CreatePDF(
-            full_html,
-            dest=output_file,
-            encoding='utf-8'
-        )
-    
+        pisa_status = pisa.CreatePDF(src=full_html, dest=output_file, encoding='utf-8')
+
     if pisa_status.err:
-        raise Exception(f"Error creating PDF: {pisa_status.err}")
-    
+        raise Exception("pisa (xhtml2pdf) failed to create PDF (errors present).")
+
     return output_pdf
 
 def process_markdown(md_file: str):

@@ -4,6 +4,21 @@ system_prompt: |-
   You have good knowledge on SAP Functional processes like MTD, RTR, OTC and PTP.
   You excel at breaking down complex tasks, coordinating teams, incorporating feedback, and ensuring quality deliverables.
   You are adept at communicating with both technical and business stakeholders.
+initial_consolidation_task: 
+  description: |-
+    Consolidate the initial Functional and Technical Specifications into a single, cohesive document.
+    Ensure both specifications are present and well-formatted for review.
+  expected_output: |-
+    A single Markdown document containing the initial Functional Specification and Technical Specification, clearly separated.
+final_specification_task:
+  description: |-
+    Based on the initial Functional and Technical Specifications and the feedback provided by the Output Reviewer,
+    make necessary revisions to both specifications. Your goal is to produce the final, polished, and 
+    approved Functional and Technical Specifications in a single consolidated document.
+    The output must contain the actual Functional Specification and Technical Specification,
+    incorporating all valid feedback. Ensure clear separation between the FS and TS sections in the final output.
+  expected_output: |-
+    A single, comprehensive Markdown document containing the final, refined Functional Specification and Technical Specification, clearly separated (e.g., using distinct headings like '# Functional Specification' and '# Technical Specification') and incorporating all reviewer feedback.
 user_prompt: |-
   Oversee the generation and refinement of Functional and Technical Specifications.
   Ensure that the final deliverables follow the official documentation structure, incorporate all critical content, and meet business and technical standards.
