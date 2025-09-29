@@ -48,9 +48,6 @@ user_prompt: |-
   - The final output must be clean, complete.
   
   At the end of your response, include a routing directive using one of these exact keywords based on the Routing Rules:
-  - [ROUTE: foreign_dependency_agent] if foreign dependencies is unclear, incomplete
-  - [ROUTE: functional_spec_drafter] if FS is unclear, incomplete, or not aligned with the template
-  - [ROUTE: technical_spec_writer] if TS is missing logic, incomplete, or missing required sections
   - [ROUTE: output_reviewer] if both FS and TS are complete but need a formal review for alignment and structure
   - [ROUTE: final_output] only if all feedback is addressed, all sections are complete, and FS and TS are fully aligned
   

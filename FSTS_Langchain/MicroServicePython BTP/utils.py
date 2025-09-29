@@ -42,16 +42,16 @@ def parse_route(content):
     match = re.search(r"\[ROUTE:\s*(\w+)\]", content)
     return match.group(1) if match else "output_reviewer"
 
-# Utility to export a LangGraph graph to PNG
-def export_graph_png(app, filename):
-    # Directly get PNG bytes
-    print(type(app.get_graph().draw_mermaid_png()))
-    png_bytes = app.get_graph().draw_mermaid_png()
+# # Utility to export a LangGraph graph to PNG
+# def export_graph_png(app, filename):
+#     # Directly get PNG bytes
+#     print(type(app.get_graph().draw_mermaid_png()))
+#     png_bytes = app.get_graph().draw_mermaid_png()
     
-    with open(filename, "wb") as f:
-        f.write(png_bytes)
+#     with open(filename, "wb") as f:
+#         f.write(png_bytes)
     
-    print(f"✅ Graph exported to {filename}")
+#     print(f"✅ Graph exported to {filename}")
 
 def add_token_usage(response, agent_name):
     """

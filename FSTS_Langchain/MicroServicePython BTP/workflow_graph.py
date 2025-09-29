@@ -28,9 +28,9 @@ def build_workflow():
         "manager_agent",
         lambda state: state["next_node"],
         {
-            "functional_spec_drafter": "functional_spec_drafter",
-            "technical_spec_writer": "technical_spec_writer",
-            "foreign_dependency_agent": "foreign_dependency_agent",
+            # "functional_spec_drafter": "functional_spec_drafter",
+            # "technical_spec_writer": "technical_spec_writer",
+            # "foreign_dependency_agent": "foreign_dependency_agent",
             "output_reviewer": "output_reviewer",
             "final_output": "final_output",
         }

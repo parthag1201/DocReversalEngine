@@ -34,7 +34,35 @@ pip install -r requirements.txt
 
 ---
 
-## ✅ Step 3: Run the API Server
+## ✅ Step 3: 📦 WeasyPrint Installation
+
+### On Windows
+
+1. **Install MSYS2**
+
+    - Download and install from [MSYS2 Installation](https://www.msys2.org/) using default options.
+
+2. **Install Pango via MSYS2**
+
+    - Open the MSYS2 shell and run:
+      ```bash
+      pacman -S mingw-w64-x86_64-pango
+      ```
+
+3. **Set Environment Variable**
+
+    - Open `cmd.exe` and set the folder where DLLs are located:
+      ```cmd
+      set WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin
+      ```
+
+### On Linux
+
+- No additional steps are needed. All required dependencies are included in `requirements.txt`.
+- Simply proceed with the standard installation instructions above.
+
+
+## ✅ Step 4: Run the API Server
 
 Start the FastAPI server with:
 
@@ -50,3 +78,5 @@ uvicorn api_server:app --reload
 
 - Use `deactivate` to exit the virtual environment when you're done.
 - If you face issues, make sure your Python version is exactly **3.8**.
+
+---
