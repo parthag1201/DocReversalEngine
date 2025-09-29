@@ -1,44 +1,16 @@
 
-# 🚀 FSTS Microservice for SAP BTP
+# 🚀 Project Setup Guide
 
-A comprehensive microservice built for SAP Business Technology Platform (BTP) that automatically generates Functional and Technical Specification (FSTS) documents from ABAP code using advanced AI agents powered by Google Gemini.
+This guide explains how to set up and run the project locally.
 
-## 📋 Overview
-
-This microservice is part of the DocReversalEngine project and provides REST API endpoints to:
-- Convert ABAP code to comprehensive FSTS documentation
-- Generate workflow diagrams from business logic
-- Connect to SAP HANA database for data persistence
-- Deploy seamlessly on SAP BTP Cloud Foundry
-
-### 🎯 Key Features
-
-- **AI-Powered Documentation**: Uses Google Gemini Pro to analyze ABAP code and generate professional specifications
-- **Multi-Agent Workflow**: Employs specialized AI agents for different aspects of documentation
-- **SAP BTP Integration**: Native support for SAP HANA and BTP services
-- **RESTful API**: Clean API endpoints for external integration
-- **Asynchronous Processing**: Background task processing for large code analysis
-- **PDF Generation**: Automatic conversion of markdown output to PDF format
+> ⚠️ **Prerequisite:** Make sure you have **Python 3.11** installed on your system.
 
 ---
 
-## 🛠️ Prerequisites
+## ✅ Step 1: Create and Activate a Virtual Environment
 
-> ⚠️ **Important:** Make sure you have **Python 3.11.x** installed on your system.
+Open a terminal (e.g., PowerShell on Windows) and run the following commands:
 
-### Required Services (for SAP BTP deployment):
-- SAP HANA database service
-- SAP Destination service  
-- SAP Authorization service
-- Google Gemini API key
-
----
-
-## ⚙️ Local Development Setup
-
-### Step 1: Create and Activate a Virtual Environment
-
-**Windows (PowerShell):**
 ```bash
 # Create virtual environment
 py -3.11 -m venv venv
@@ -50,52 +22,56 @@ Set-ExecutionPolicy Unrestricted -Scope Process
 venv\Scripts\activate
 ```
 
-**macOS/Linux:**
-```bash
-# Create virtual environment
-python3.11 -m venv venv
+---
 
-# Activate the virtual environment
-source venv/bin/activate
-```
+## ✅ Step 2: Install Dependencies
 
-### Step 2: Install Dependencies
+Install all required Python packages using:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 3: Environment Configuration
+---
 
-Create a `.env` file in the project root with the following variables:
+## ✅ Step 3: 📦 WeasyPrint Installation
 
-```env
-# Google Gemini API Configuration
-GEMINI_API_KEY=your_google_gemini_api_key_here
+### On Windows
 
-# SAP HANA Configuration (for local testing)
-host=your_hana_host
-port=443
-user=your_hana_user
-password=your_hana_password
-certificate=path_to_certificate.pem
+1. **Install MSYS2**
 
-# Optional: HTML to Image API (for PNG generation)
-HCTI_USER_ID=your_hcti_user_id
-HCTI_API_KEY=your_hcti_api_key
-```
+    - Download and install from [MSYS2 Installation](https://www.msys2.org/) using default options.
 
-### Step 4: Run the API Server
+2. **Install Pango via MSYS2**
+
+    - Open the MSYS2 shell and run:
+      ```bash
+      pacman -S mingw-w64-x86_64-pango
+      ```
+
+3. **Set Environment Variable**
+
+    - Open `cmd.exe` and set the folder where DLLs are located:
+      ```cmd
+      set WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin
+      ```
+
+### On Linux
+
+- No additional steps are needed. All required dependencies are included in `requirements.txt`.
+- Simply proceed with the standard installation instructions above.
+
+---
+
+## ✅ Step 4: Run the API Server
+
+Start the FastAPI server with:
 
 ```bash
-# Development mode with auto-reload
 uvicorn api_server:app --reload
-
-# Production mode
-python api_server.py
 ```
 
-> 🌐 The API will be available at: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+> The API will be live at: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 > 
 > 📚 API Documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
@@ -103,203 +79,74 @@ python api_server.py
 
 ## 🌐 API Endpoints
 
-### POST `/code2fsts`
-Convert ABAP code to FSTS documentation (asynchronous)
+The server provides the following endpoints:
+- **POST** `/code2fsts` - Convert ABAP code to FSTS documentation (asynchronous)
+- **GET** `/code2fsts/status/{task_id}` - Check task status and retrieve results
+- **GET** `/testfsts` - Test endpoint for development
 
-**Request Body:**
-```json
-{
-  "input_b64": "base64_encoded_abap_code"
-}
-```
+### 📖 Postman Documentation
 
-**Response:**
-```json
-{
-  "status": "Processing",
-  "task_id": "uuid-task-identifier"
-}
-```
-
-### GET `/code2fsts/status/{task_id}`
-Check task status and retrieve results
-
-**Response (Processing):**
-```json
-{
-  "status": "Processing",
-  "base64_fsts": null
-}
-```
-
-**Response (Completed):**
-```json
-{
-  "status": "Completed",
-  "base64_fsts": "base64_encoded_pdf_document"
-}
-```
-
-### GET `/testfsts`
-Test endpoint for development and SAP HANA connectivity
+Complete API documentation with examples is available in our Postman workspace:
+[FSTS Microservice API Documentation](https://dhruvkejri9mccain-3468531.postman.co/workspace/dhruv-kejriwal's-Workspace~86696e18-0d97-4b71-894f-f53f6232c608/collection/47354697-cee79f4a-9c41-49f1-9cfb-8716fd592b0d?action=share&creator=47354697)
 
 ---
 
-## 🚀 SAP BTP Deployment
+## ⚙️ Customizing AI Agents
 
-### 1. Update `manifest.yml`
+### Agent Prompts Configuration
 
+The AI agents use configurable YAML prompt templates located in the `prompts/` directory:
+
+```
+prompts/
+├── abap_code_analyst.yaml      # Code analysis prompts
+├── functional_spec_drafter.yaml # Business specification prompts
+├── technical_spec_writer.yaml  # Technical documentation prompts
+├── foreign_dependency_agent.yaml # Dependency analysis prompts
+├── manager_agent.yaml          # Workflow coordination prompts
+└── output_reviewer.yaml        # Quality review prompts
+```
+
+### Editing Agent Prompts
+
+1. **Navigate to the prompts directory**: `cd prompts/`
+
+2. **Edit the desired agent's YAML file**: 
+   ```bash
+   # Example: Edit the functional spec drafter
+   nano functional_spec_drafter.yaml
+   ```
+
+3. **Modify the prompt structure**: Each YAML file contains role definitions, goals, and backstory for the AI agents.
+
+4. **Test your changes**: Restart the API server to apply the new prompts:
+   ```bash
+   uvicorn api_server:app --reload
+   ```
+
+### Prompt Template Structure
+
+Each agent prompt file follows this structure:
 ```yaml
----
-applications:
-- name: your-app-name
-  random-route: true
-  path: ./
-  memory: 256M
-  buildpacks: 
-  - python_buildpack
-  command: python api_server.py
-  services:
-  - your-hana-service
-  - your-destination-service
-  - your-auth-service
+role: "Agent Role Name"
+goal: "Primary objective of this agent"
+backstory: |
+  Detailed background and context for the agent's behavior
+  and expertise area.
 ```
 
-### 2. Deploy to Cloud Foundry
+### Adding New Agents
 
-```bash
-# Login to SAP BTP
-cf login -a https://api.cf.your-region.hana.ondemand.com
-
-# Deploy the application
-cf push
-```
-
-### 3. Bind Required Services
-
-```bash
-# Bind HANA service
-cf bind-service your-app-name your-hana-service
-
-# Bind other services as needed
-cf bind-service your-app-name your-destination-service
-cf bind-service your-app-name your-auth-service
-
-# Restart the application
-cf restart your-app-name
-```
+1. Create a new YAML file in the `prompts/` directory
+2. Update `agents.py` to include the new agent definition
+3. Modify `tasks.py` to add tasks for the new agent
+4. Update `workflow_graph.py` to include the agent in the workflow
 
 ---
 
-## 🏗️ Architecture
+## 🛠️ Notes
 
-The microservice uses a multi-agent architecture with the following components:
-
-1. **ABAP Code Analyst**: Parses and understands ABAP code structure
-2. **Functional Spec Drafter**: Creates business-focused documentation
-3. **Technical Spec Writer**: Generates technical implementation details
-4. **Manager Agent**: Coordinates the workflow and ensures quality
-5. **Output Reviewer**: Validates and formats final output
-
-### Workflow Process:
-```
-ABAP Code Input → Code Analysis → Foreign Dependencies → 
-Functional Spec → Technical Spec → Consolidation → 
-Review & Feedback → Final Specification (PDF)
-```
-
----
-
-## 🔧 Configuration Files
-
-- `requirements.txt`: Python dependencies
-- `runtime.txt`: Python runtime version for BTP deployment
-- `Procfile`: Process definition for deployment
-- `manifest.yml`: SAP BTP deployment configuration
-- `prompts/*.yaml`: AI agent prompt configurations
-
----
-
-## 🧪 Testing
-
-```bash
-# Run the test suite (if available)
-python -m pytest test/
-
-# Test API locally with curl
-curl -X POST "http://localhost:8000/code2fsts" \
-  -H "Content-Type: application/json" \
-  -d '{"input_b64": "your_base64_encoded_abap_code"}'
-```
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues:
-
-1. **Python Version Mismatch**: Ensure you're using Python 3.11.x as specified in `runtime.txt`
-
-2. **Missing API Key**: Make sure `GEMINI_API_KEY` is set in your environment variables
-
-3. **HANA Connection Issues**: Verify your HANA service credentials and network connectivity
-
-4. **Memory Issues on BTP**: Increase memory allocation in `manifest.yml` if needed
-
-5. **Import Errors**: Run `pip install -r requirements.txt` to ensure all dependencies are installed
-
-### Debugging:
-
-Enable verbose logging by setting environment variable:
-```bash
-export LOG_LEVEL=DEBUG
-```
-
----
-
-## 📁 Project Structure
-
-```
-MicroServicePython BTP/
-├── api_server.py           # FastAPI application and endpoints
-├── main.py                 # Core workflow orchestration
-├── agents.py               # AI agent definitions
-├── tasks.py                # Task definitions for agents
-├── data_processor.py       # Data handling and processing
-├── utils.py                # Utility functions
-├── workflow_graph.py       # LangGraph workflow definition
-├── workflowdiagramv1.py    # Workflow diagram generation
-├── requirements.txt        # Python dependencies
-├── runtime.txt             # Python version specification
-├── manifest.yml            # SAP BTP deployment config
-├── Procfile               # Process definition
-└── prompts/               # AI agent prompt templates
-    ├── abap_code_analyst.yaml
-    ├── functional_spec_drafter.yaml
-    ├── technical_spec_writer.yaml
-    └── ...
-```
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is part of the DocReversalEngine repository. Please refer to the main repository license for details.
-
----
-
-## 🔗 Related Projects
-
-- **DocReversalEngine**: Main repository for document reverse engineering
-- **FSTS_Crew**: CrewAI-based implementation for FSTS generation
-- **Workflow**: Workflow diagram generation modules
+- Use `deactivate` to exit the virtual environment when you're done.
+- If you face issues, make sure your Python version is exactly **Python 3.11**.
+- The system requires a Google Gemini API key for AI functionality.
+- PDF generation requires WeasyPrint to be properly installed.
