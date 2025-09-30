@@ -153,89 +153,89 @@ def get_fsts_base64_test():
         file_encoded = base64.b64encode(final_messages.encode("utf-8")).decode("utf-8")
 
     # --- HANA DB fetch ---
-    hana_row = None
-    schemas = []
-    connection_info = {}
-    rows = []
-    rows_serializable = []
-    try:
-        from hdbcli import dbapi
-        from cfenv import AppEnv
+    # hana_row = None
+    # schemas = []
+    # connection_info = {}
+    # rows = []
+    # rows_serializable = []
+    # try:
+    #     from hdbcli import dbapi
+    #     from cfenv import AppEnv
 
-        env = AppEnv()
-        hana_service = "hana"
-        hana = env.get_service(label=hana_service)
+    #     env = AppEnv()
+    #     hana_service = "hana"
+    #     hana = env.get_service(label=hana_service)
 
-        if hana is None:
-            hana_row = f"Can't connect to HANA service '{hana_service}' – check service name?"
-        else:
-            address = hana.credentials["host"]
-            port = int(hana.credentials["port"])
-            user = hana.credentials["user"]
+    #     if hana is None:
+    #         hana_row = f"Can't connect to HANA service '{hana_service}' – check service name?"
+    #     else:
+    #         address = hana.credentials["host"]
+    #         port = int(hana.credentials["port"])
+    #         user = hana.credentials["user"]
 
-            # Store connection info
-            connection_info = {
-                "address": address,
-                "port": port,
-                "user": user
-            }
+    #         # Store connection info
+    #         connection_info = {
+    #             "address": address,
+    #             "port": port,
+    #             "user": user
+    #         }
 
-            conn = dbapi.connect(
-                address=address,
-                port=port,
-                user=user,
-                password=hana.credentials["password"],
-                encrypt="true",
-                sslValidateCertificate="true",
-                sslCryptoProvider="openssl",
-                sslTrustStore=hana.credentials["certificate"]
-            )
-            schema_name = "6A8FE460FE1D45DD8782BE10B7EB66FC"
-            cursor = conn.cursor()
+    #         conn = dbapi.connect(
+    #             address=address,
+    #             port=port,
+    #             user=user,
+    #             password=hana.credentials["password"],
+    #             encrypt="true",
+    #             sslValidateCertificate="true",
+    #             sslCryptoProvider="openssl",
+    #             sslTrustStore=hana.credentials["certificate"]
+    #         )
+    #         schema_name = "6A8FE460FE1D45DD8782BE10B7EB66FC"
+    #         cursor = conn.cursor()
 
-            # Get current timestamp
-            cursor.execute("SELECT CURRENT_UTCTIMESTAMP FROM DUMMY")
-            row = cursor.fetchone()
-            hana_row = str(row[0]) if row else "No result"
+    #         # Get current timestamp
+    #         cursor.execute("SELECT CURRENT_UTCTIMESTAMP FROM DUMMY")
+    #         row = cursor.fetchone()
+    #         hana_row = str(row[0]) if row else "No result"
 
-            # Get list of schemas
-            cursor.execute("SELECT SCHEMA_NAME FROM SYS.SCHEMAS")
-            schemas = [r[0] for r in cursor.fetchall()]
+    #         # Get list of schemas
+    #         cursor.execute("SELECT SCHEMA_NAME FROM SYS.SCHEMAS")
+    #         schemas = [r[0] for r in cursor.fetchall()]
 
-            cursor.execute(f'SET SCHEMA "{schema_name}"')
+    #         cursor.execute(f'SET SCHEMA "{schema_name}"')
 
-            # # Create table if not exists
-            # cursor.execute(f"""
-            # CREATE COLUMN TABLE "{schema_name}"."FSTSHeader" (
-            #     "id" NVARCHAR(36),
-            #     "content" BLOB,
-            #     "taskID" INTEGER,
-            #     PRIMARY KEY ("id")
-            # )
-            # """)
+    #         # # Create table if not exists
+    #         # cursor.execute(f"""
+    #         # CREATE COLUMN TABLE "{schema_name}"."FSTSHeader" (
+    #         #     "id" NVARCHAR(36),
+    #         #     "content" BLOB,
+    #         #     "taskID" INTEGER,
+    #         #     PRIMARY KEY ("id")
+    #         # )
+    #         # """)
             
-            # id = 5
-            # content = "Example content"
-            # taskID = 1
-            # cursor.execute(f"""
-            # INSERT INTO "MY_BOOKSHOP_BOOKS" ("ID", "TITLE", "STOCK") VALUES (?, ?, ?)
-            # """, (id, content, taskID))
+    #         # id = 5
+    #         # content = "Example content"
+    #         # taskID = 1
+    #         # cursor.execute(f"""
+    #         # INSERT INTO "MY_BOOKSHOP_BOOKS" ("ID", "TITLE", "STOCK") VALUES (?, ?, ?)
+    #         # """, (id, content, taskID))
 
-            cursor.execute('SELECT * FROM "MY_BOOKSHOP_BOOKS"')
-            rows = cursor.fetchall()
-            rows_serializable = [list(r) for r in rows]
+    #         cursor.execute('SELECT * FROM "MY_BOOKSHOP_BOOKS"')
+    #         rows = cursor.fetchall()
+    #         rows_serializable = [list(r) for r in rows]
 
-            cursor.close()
-            conn.close()
-    except Exception as e:
-        hana_row = f"Error fetching from HANA: {e}"
+    #         cursor.close()
+    #         conn.close()
+    # except Exception as e:
+    #     hana_row = f"Error fetching from HANA: {e}"
 
     return {
         "base64_fsts": file_encoded,
-        "hana_sample_row": hana_row,
-        "schemas": schemas,
-        "connection_info": connection_info,
-        "fsts_data": rows_serializable
+        # "hana_sample_row": hana_row,
+        # "schemas": schemas,
+        # "connection_info": connection_info,
+        # "fsts_data": rows_serializable
     }
 
 # To run: uvicorn api_server:app --reload
