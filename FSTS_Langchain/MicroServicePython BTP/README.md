@@ -1,4 +1,5 @@
 
+
 # 🚀 Project Setup Guide
 
 This guide explains how to set up and run the project locally.
@@ -63,7 +64,13 @@ pip install -r requirements.txt
 
 ---
 
-## ✅ Step 4: Run the API Server
+## ✅ Step 4: Required PDF Template
+
+> **Important:** You must have a `template.pdf` file present in the project directory for correct PDF generation. If `template.pdf` is missing, a default sample template will be used, which is **not correct** and may result in unexpected output.
+
+---
+
+## ✅ Step 5: Run the API Server
 
 Start the FastAPI server with:
 
