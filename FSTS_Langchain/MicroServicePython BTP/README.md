@@ -124,17 +124,6 @@ prompts/
    uvicorn api_server:app --reload
    ```
 
-### Prompt Template Structure
-
-Each agent prompt file follows this structure:
-```yaml
-role: "Agent Role Name"
-goal: "Primary objective of this agent"
-backstory: |
-  Detailed background and context for the agent's behavior
-  and expertise area.
-```
-
 ### Adding New Agents
 
 1. Create a new YAML file in the `prompts/` directory
